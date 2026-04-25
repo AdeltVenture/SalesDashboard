@@ -85,12 +85,16 @@ def _parse_number(series):
 @st.cache_data(show_spinner="Daten laden …")
 def load_csv(raw_bytes: bytes) -> pd.DataFrame:
     import io
+    df = None
     for enc in ("utf-8-sig", "utf-8", "latin-1", "cp1252"):
         try:
-            df = pd.read_csv(io.BytesIO(raw_bytes), encoding=enc)
+            df = pd.read_csv(io.BytesIO(raw_bytes), encoding=enc, sep=None, engine="python")
             break
         except Exception:
             continue
+    if df is None:
+        st.error("CSV konnte nicht gelesen werden – bitte Datei und Encoding prüfen.")
+        st.stop()
 
     df.columns = df.columns.str.strip()
 
@@ -109,7 +113,8 @@ def load_csv(raw_bytes: bytes) -> pd.DataFrame:
     today = pd.Timestamp(date.today())
 
     # ── Derived
-    df["Alter_Tage"]    = (today - df.get("Erstellt", pd.NaT)).dt.days
+    erstellt = df["Erstellt"] if "Erstellt" in df.columns else pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
+    df["Alter_Tage"]    = (today - erstellt).dt.days
     df["Alter_Bucket"]  = df["Alter_Tage"].apply(_age_bucket)
     df["Ist_Verloren"]  = df["Phase"].apply(_is_lost)
 
