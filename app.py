@@ -49,6 +49,22 @@ def _is_lost(phase):
     if pd.isna(phase): return False
     return any(kw in str(phase).lower() for kw in LOST_KEYWORDS)
 
+def _parse_date_robust(series):
+    """Parst Datumsspalten mit mehreren Formaten (ISO, deutsch, mit/ohne TZ)."""
+    for kw in [
+        dict(utc=True, errors="coerce"),
+        dict(errors="coerce", dayfirst=True),
+        dict(errors="coerce", format="%d.%m.%Y"),
+        dict(errors="coerce", format="%d.%m.%Y %H:%M"),
+        dict(errors="coerce", format="%d.%m.%Y %H:%M:%S"),
+    ]:
+        parsed = pd.to_datetime(series, **kw)
+        if parsed.notna().any():
+            if parsed.dt.tz is not None:
+                return parsed.dt.tz_convert(None)
+            return parsed
+    return pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
+
 def _parse_number(series):
     s = series.astype(str).str.strip()
     if s.str.contains(r"\d\.\d{3},", regex=True).any():
@@ -96,11 +112,10 @@ def load_csv(raw_bytes):
     for col in ("Erstellt","earliest_todo_due_at","due_at","Frist"):
         real = col_map.get(col.lower(), col)
         if real in df.columns:
-            df[real] = pd.to_datetime(df[real], utc=True, errors="coerce")
-            df[real] = df[real].dt.tz_convert(None)
+            df[real] = _parse_date_robust(df[real])
     # WV-Spalte: nimm die mit den meisten echten Werten (due_at hat Vorrang)
     _wv_set = False
-    for wv_col in ("due_at","earliest_todo_due_at","Frist"):
+    for wv_col in ("Frist","due_at","earliest_todo_due_at"):
         real = col_map.get(wv_col.lower(), wv_col)
         if real in df.columns and df[real].notna().any():
             df["_wv"] = df[real]
