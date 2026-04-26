@@ -158,13 +158,17 @@ with st.sidebar.expander("🔍 Debug WV"):
     import io as _io
     for enc in ("utf-8-sig","utf-8","latin-1","cp1252"):
         try:
-            _rdf = pd.read_csv(_io.BytesIO(raw_bytes), encoding=enc, sep=None, engine="python", nrows=5)
+            _rdf = pd.read_csv(_io.BytesIO(raw_bytes), encoding=enc, sep=None, engine="python")
             break
         except: continue
-    st.write("_wv nicht-leer:", int(df["_wv"].notna().sum()), "von", len(df))
-    for c in ("earliest_todo_due_at","Frist","due_at"):
-        if c in _rdf.columns:
-            st.write(f"RAW '{c}':", _rdf[c].tolist())
+    st.write("### Alle Spalten mit Nicht-Leer-Zählung:")
+    for c in _rdf.columns:
+        n = int(_rdf[c].notna().sum())
+        if n > 0:
+            sample = _rdf[c].dropna().iloc[0]
+            st.write(f"**{c}**: {n}/{len(_rdf)} — z.B. `{sample}`")
+        else:
+            st.write(f"{c}: leer")
 
 act = df[~df["Ist_Verloren"]].copy()
 if act.empty:
