@@ -1,12 +1,14 @@
 Set WshShell = CreateObject("WScript.Shell")
 Set fso      = CreateObject("Scripting.FileSystemObject")
 
-Dim strDesktop
-strDesktop = WshShell.SpecialFolders("Desktop")
+' Stabilen Ordner in AppData anlegen
+Dim loyagoDir
+loyagoDir = WshShell.ExpandEnvironmentStrings("%APPDATA%") & "\LOYAGO"
+If Not fso.FolderExists(loyagoDir) Then fso.CreateFolder(loyagoDir)
 
-' Launcher-VBS direkt auf dem Desktop anlegen
+' Launcher-VBS dauerhaft in AppData speichern
 Dim launcherPath
-launcherPath = strDesktop & "\LOYAGO Sales Dashboard starten.vbs"
+launcherPath = loyagoDir & "\dashboard-starten.vbs"
 
 Dim ts
 Set ts = fso.CreateTextFile(launcherPath, True)
@@ -16,7 +18,9 @@ ts.WriteLine "WScript.Sleep 6000"
 ts.WriteLine "WshShell.Run ""http://localhost:8501"""
 ts.Close
 
-' Desktop-Verknüpfung mit Icon erstellen
+' Desktop-Verknüpfung mit Icon anlegen
+Dim strDesktop
+strDesktop = WshShell.SpecialFolders("Desktop")
 Set oLink = WshShell.CreateShortcut(strDesktop & "\LOYAGO Sales Dashboard.lnk")
 oLink.TargetPath   = "wscript.exe"
 oLink.Arguments    = Chr(34) & launcherPath & Chr(34)
@@ -25,4 +29,4 @@ oLink.WindowStyle  = 7
 oLink.Description  = "LOYAGO Sales Dashboard starten"
 oLink.Save
 
-MsgBox "Desktop-Icon wurde erstellt!" & Chr(10) & Chr(10) & "Du findest 'LOYAGO Sales Dashboard' jetzt auf deinem Desktop.", 64, "LOYAGO"
+MsgBox "Fertig! Das Icon liegt jetzt auf deinem Desktop.", 64, "LOYAGO"
