@@ -152,6 +152,17 @@ if not uploaded:
     st.stop()
 
 df  = load_csv(uploaded.read())
+
+with st.sidebar.expander("🔍 Debug WV"):
+    col_map_dbg = {c.lower().strip(): c for c in df.columns}
+    wv_col_found = col_map_dbg.get("due_at") or col_map_dbg.get("earliest_todo_due_at") or col_map_dbg.get("frist") or "—"
+    st.write("Alle Spalten:", list(df.columns))
+    st.write("WV-Spalte erkannt:", wv_col_found)
+    st.write("_wv nicht-leer:", int(df["_wv"].notna().sum()), "von", len(df))
+    st.write("_wv Beispielwerte:", df["_wv"].dropna().head(3).tolist())
+    if wv_col_found != "—":
+        st.write("Rohdaten due_at (3 Zeilen):", df[wv_col_found].head(3).tolist())
+
 act = df[~df["Ist_Verloren"]].copy()
 if act.empty:
     st.warning("Keine aktiven Leads."); st.stop()
