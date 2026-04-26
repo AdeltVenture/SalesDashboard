@@ -91,16 +91,21 @@ def load_csv(raw_bytes):
     if df is None:
         st.error("CSV konnte nicht gelesen werden."); st.stop()
     df.columns = df.columns.str.strip()
+    # Spaltennamen normalisieren für robuste Erkennung
+    col_map = {c.lower().strip(): c for c in df.columns}
     for col in ("Erstellt","earliest_todo_due_at","due_at","Frist"):
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
+        real = col_map.get(col.lower(), col)
+        if real in df.columns:
+            df[real] = pd.to_datetime(df[real], utc=True, errors="coerce")
+            df[real] = df[real].dt.tz_localize(None)  # timezone entfernen
     # Einheitliche WV-Spalte: erste vorhandene gewinnt
     for wv_col in ("earliest_todo_due_at","due_at","Frist"):
-        if wv_col in df.columns:
-            df["_wv"] = df[wv_col]
+        real = col_map.get(wv_col.lower(), wv_col)
+        if real in df.columns:
+            df["_wv"] = df[real]
             break
     else:
-        df["_wv"] = pd.NaT
+        df["_wv"] = pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
     for col in ("Potenzieller Wert","Provision","attr_case_potential_value"):
         if col in df.columns:
             df[col] = _parse_number(df[col]).fillna(0)
