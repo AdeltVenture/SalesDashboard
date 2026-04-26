@@ -133,8 +133,7 @@ def load_csv(raw_bytes):
 with st.sidebar:
     st.markdown(f'<p style="color:{MUTED};font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:600;">CSV Import</p>', unsafe_allow_html=True)
     uploaded  = st.file_uploader("Export", type=["csv"], label_visibility="collapsed")
-    st.markdown("---")
-    warn_days = st.slider("Kritisches Alter (Tage)", 14, 60, 28)
+    warn_days = 28
 
 # ── header ────────────────────────────────────────────────────────────────────
 hc1, hc2, hc3 = st.columns([2,5,2])
