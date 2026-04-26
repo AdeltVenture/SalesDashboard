@@ -97,7 +97,7 @@ def load_csv(raw_bytes):
         real = col_map.get(col.lower(), col)
         if real in df.columns:
             df[real] = pd.to_datetime(df[real], utc=True, errors="coerce")
-            df[real] = df[real].dt.tz_localize(None)  # timezone entfernen
+            df[real] = df[real].dt.tz_convert(None)
     # Einheitliche WV-Spalte: erste vorhandene gewinnt
     for wv_col in ("earliest_todo_due_at","due_at","Frist"):
         real = col_map.get(wv_col.lower(), wv_col)
@@ -220,7 +220,7 @@ if phases_in:
 
         with pcols[i]:
             st.markdown(f"""<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;padding:1.2rem 1rem;border-top:4px solid {top};box-shadow:0 2px 10px rgba(37,99,235,.08);">
-<div style="color:{MUTED};font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">{phase}</div>
+<div style="color:{MUTED};font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;min-height:2.4rem;display:flex;align-items:flex-end;">{phase}</div>
 <div style="color:{TEXT};font-size:2rem;font-weight:800;line-height:1;margin-bottom:.1rem;">{n}</div>
 <div style="color:{MUTED};font-size:.6rem;margin-bottom:.4rem;">Leads</div>
 <div style="color:{BLUE};font-size:.9rem;font-weight:700;margin-bottom:.9rem;">{fmt_eur(val)}</div>
