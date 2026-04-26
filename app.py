@@ -91,9 +91,16 @@ def load_csv(raw_bytes):
     if df is None:
         st.error("CSV konnte nicht gelesen werden."); st.stop()
     df.columns = df.columns.str.strip()
-    for col in ("Erstellt","earliest_todo_due_at","Frist"):
+    for col in ("Erstellt","earliest_todo_due_at","due_at","Frist"):
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
+    # Einheitliche WV-Spalte: erste vorhandene gewinnt
+    for wv_col in ("earliest_todo_due_at","due_at","Frist"):
+        if wv_col in df.columns:
+            df["_wv"] = df[wv_col]
+            break
+    else:
+        df["_wv"] = pd.NaT
     for col in ("Potenzieller Wert","Provision","attr_case_potential_value"):
         if col in df.columns:
             df[col] = _parse_number(df[col]).fillna(0)
@@ -103,18 +110,18 @@ def load_csv(raw_bytes):
     erstellt = df["Erstellt"] if "Erstellt" in df.columns else pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
     df["Alter_Tage"]   = (today - erstellt).dt.days
     df["Ist_Verloren"] = df["Phase"].apply(_is_lost)
-    todo = df.get("earliest_todo_due_at", pd.Series(pd.NaT, index=df.index))
-    in3 = today + pd.Timedelta(days=3)
-    in5 = today + pd.Timedelta(days=5)
+    todo = df["_wv"]
+    in3  = today + pd.Timedelta(days=3)
+    in5  = today + pd.Timedelta(days=5)
     df["Flag_Keine_WV"]        = (~df["Ist_Verloren"]) & todo.isna()
     df["Flag_Kein_Wert"]       = (~df["Ist_Verloren"]) & (df.get("Potenzieller Wert", 0) == 0)
     df["Flag_WV_Ueberfaellig"] = (~df["Ist_Verloren"]) & todo.notna() & (todo < today)
     df["Flag_WV_Heute"]        = (~df["Ist_Verloren"]) & todo.notna() & (todo.dt.date == date.today())
     df["WV_Bucket"] = "Später"
-    df.loc[todo.isna() & ~df["Ist_Verloren"], "WV_Bucket"]             = "Keine WV"
-    df.loc[todo.notna() & (todo < today),     "WV_Bucket"]             = "Überfällig"
-    df.loc[todo.notna() & (todo >= today) & (todo <= in3), "WV_Bucket"] = "≤ 3 Tage"
-    df.loc[todo.notna() & (todo > in3) & (todo <= in5),   "WV_Bucket"] = "≤ 5 Tage"
+    df.loc[todo.isna() & ~df["Ist_Verloren"],                          "WV_Bucket"] = "Keine WV"
+    df.loc[todo.notna() & (todo < today),                              "WV_Bucket"] = "Überfällig"
+    df.loc[todo.notna() & (todo >= today) & (todo <= in3),             "WV_Bucket"] = "≤ 3 Tage"
+    df.loc[todo.notna() & (todo > in3)   & (todo <= in5),             "WV_Bucket"] = "≤ 5 Tage"
     return df
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
@@ -210,10 +217,7 @@ if phases_in:
         with pcols[i]:
             st.markdown(f"""<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;padding:1.2rem 1rem;border-top:4px solid {top};box-shadow:0 2px 10px rgba(37,99,235,.08);">
 <div style="color:{MUTED};font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;">{phase}</div>
-<div style="display:flex;align-items:baseline;gap:.4rem;margin-bottom:.1rem;">
-  <span style="color:{TEXT};font-size:2rem;font-weight:800;line-height:1;">{n}</span>
-  <span style="color:{MUTED};font-size:.7rem;">({pct}%)</span>
-</div>
+<div style="color:{TEXT};font-size:2rem;font-weight:800;line-height:1;margin-bottom:.1rem;">{n}</div>
 <div style="color:{MUTED};font-size:.6rem;margin-bottom:.4rem;">Leads</div>
 <div style="color:{BLUE};font-size:.9rem;font-weight:700;margin-bottom:.9rem;">{fmt_eur(val)}</div>
 <div style="border-top:1px solid {BDR};padding-top:.7rem;">{wv_rows if wv_rows else f'<span style="color:{GREEN};font-size:.6rem;">✓ Alle WV gesetzt</span>'}</div>
