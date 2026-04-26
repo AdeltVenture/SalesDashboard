@@ -98,13 +98,15 @@ def load_csv(raw_bytes):
         if real in df.columns:
             df[real] = pd.to_datetime(df[real], utc=True, errors="coerce")
             df[real] = df[real].dt.tz_convert(None)
-    # Einheitliche WV-Spalte: erste vorhandene gewinnt
-    for wv_col in ("earliest_todo_due_at","due_at","Frist"):
+    # WV-Spalte: nimm die mit den meisten echten Werten (due_at hat Vorrang)
+    _wv_set = False
+    for wv_col in ("due_at","earliest_todo_due_at","Frist"):
         real = col_map.get(wv_col.lower(), wv_col)
-        if real in df.columns:
+        if real in df.columns and df[real].notna().any():
             df["_wv"] = df[real]
+            _wv_set = True
             break
-    else:
+    if not _wv_set:
         df["_wv"] = pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
     for col in ("Potenzieller Wert","Provision","attr_case_potential_value"):
         if col in df.columns:
