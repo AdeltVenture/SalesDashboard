@@ -9,7 +9,7 @@ st.set_page_config(page_title="LOYAGO · Sales Cockpit", page_icon="📊", layou
 LOST_KEYWORDS = ["kein interesse", "verloren", "abgeschlossen", "closed lost", "closed won", "gewonnen", "won", "lost"]
 PHASE_ORDER = [
     "Termin offen", "Termin vereinbart", "Beratung läuft",
-    "Angebot raus", "Antrag raus", "Policiert", "Nachbearbeitung", "After Sales",
+    "Angebot raus", "Antrag raus", "Nachbearbeitung", "Policiert", "After Sales",
 ]
 
 # ── Farben (helles LOYAGO-Theme) ─────────────────────────────────────────────
@@ -193,7 +193,7 @@ k5.metric("Ohne Wiedervorlage", n_no_wv)
 # ── Phase Cards ───────────────────────────────────────────────────────────────
 sep("Pipeline nach Phase")
 
-WV_ORDER  = ["Überfällig", "Keine WV", "≤ 3 Tage", "≤ 5 Tage", "Später"]
+WV_ORDER  = ["Keine WV", "Überfällig", "≤ 3 Tage", "≤ 5 Tage", "Später"]
 WV_COLORS = {
     "Überfällig": "#dc2626",   # Rot
     "Keine WV":   "#f97316",   # Orange
@@ -211,11 +211,7 @@ if phases_in:
         ph    = act[act["Phase"] == phase] if "Phase" in act.columns else act.iloc[0:0]
         n     = len(ph)
         val   = ph["Potenzieller Wert"].sum() if "Potenzieller Wert" in ph.columns else 0
-        n_ov  = int(ph["Flag_WV_Ueberfaellig"].sum())
-        n_wv  = int(ph["Flag_Keine_WV"].sum())
         pct   = round(n / total * 100) if total else 0
-        # Status-Dot: Rot = überfällig, Orange = ohne WV, Slate = OK
-        dot   = "#dc2626" if n_ov else ("#f97316" if n_wv else "#94a3b8")
 
         wv_counts = ph["WV_Bucket"].value_counts() if "WV_Bucket" in ph.columns else pd.Series(dtype=int)
         wv_rows = ""
@@ -238,17 +234,15 @@ if phases_in:
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
                 f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);">'
-                # Header: Phase-Name + Status-Dot
-                f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem;">'
+                # Phase-Name + Lead-Count + % auf eine Zeile
+                f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;gap:.3rem;">'
                 f'<div style="color:{BLUE};font-size:.62rem;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:.08em;line-height:1.35;flex:1;margin-right:.4rem;">{phase}</div>'
-                f'<div style="width:9px;height:9px;border-radius:50%;background:{dot};flex-shrink:0;margin-top:3px;" title="Status"></div>'
-                f'</div>'
-                # Lead-Count + Prozent-Badge
-                f'<div style="display:flex;align-items:baseline;gap:.4rem;margin-bottom:.15rem;">'
+                f'letter-spacing:.08em;line-height:1.4;flex:1;overflow:hidden;text-overflow:ellipsis;">{phase}</div>'
+                f'<div style="display:flex;align-items:center;gap:.35rem;white-space:nowrap;flex-shrink:0;">'
                 f'<span style="color:{TEXT};font-size:1.85rem;font-weight:800;line-height:1;">{n}</span>'
                 f'<span style="background:{LBLUE};color:{BLUE};font-size:.62rem;font-weight:700;'
-                f'padding:2px 7px;border-radius:20px;white-space:nowrap;">{pct} %</span>'
+                f'padding:2px 7px;border-radius:20px;">{pct} %</span>'
+                f'</div>'
                 f'</div>'
                 f'<div style="color:{MUTED};font-size:.67rem;margin-bottom:.35rem;">Leads</div>'
                 f'<div style="color:{BLUE};font-size:.82rem;font-weight:700;margin-bottom:.55rem;">{fmt_eur(val)}</div>'
