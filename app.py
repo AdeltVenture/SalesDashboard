@@ -9,7 +9,7 @@ st.set_page_config(page_title="LOYAGO · Sales Cockpit", page_icon="📊", layou
 LOST_KEYWORDS = ["kein interesse", "verloren", "abgeschlossen", "closed lost", "closed won", "gewonnen", "won", "lost"]
 PHASE_ORDER = [
     "Termin offen", "Termin vereinbart", "Beratung läuft",
-    "Angebot raus", "Antrag raus", "Nachbearbeitung", "Policiert", "After Sales",
+    "Angebot raus", "Antrag raus", "Policiert", "Nachbearbeitung", "After Sales",
 ]
 
 # ── Farben (helles LOYAGO-Theme) ─────────────────────────────────────────────
@@ -201,7 +201,7 @@ k5.metric("Ohne Wiedervorlage", n_no_wv)
 # ── Phase Cards ───────────────────────────────────────────────────────────────
 sep("Pipeline nach Phase")
 
-WV_ORDER  = ["Überfällig","Keine WV","≤ 3 Tage","≤ 5 Tage","Später"]
+WV_ORDER  = ["Überfällig", "Keine WV", "≤ 3 Tage", "≤ 5 Tage", "Später"]
 WV_COLORS = {"Überfällig": RED, "Keine WV": ORA, "≤ 3 Tage": YEL, "≤ 5 Tage": BLUE, "Später": GREEN}
 
 phases_in  = [p for p in PHASE_ORDER if "Phase" in act.columns and p in act["Phase"].values]
@@ -213,37 +213,40 @@ if phases_in:
         ph   = act[act["Phase"] == phase] if "Phase" in act.columns else act.iloc[0:0]
         n    = len(ph)
         val  = ph["Potenzieller Wert"].sum() if "Potenzieller Wert" in ph.columns else 0
-        pct  = round(n / total * 100) if total else 0
         n_ov = int(ph["Flag_WV_Ueberfaellig"].sum())
-        n_wv = int(ph["Flag_Keine_WV"].sum())
-        n_vl = int(ph["Flag_Kein_Wert"].sum())
-        top  = RED if n_ov else (ORA if n_wv else (YEL if n_vl else GREEN))
+        top  = RED if n_ov else BLUE
 
         wv_counts = ph["WV_Bucket"].value_counts() if "WV_Bucket" in ph.columns else pd.Series(dtype=int)
         wv_rows = ""
         for bucket in WV_ORDER:
-            cnt = int(wv_counts.get(bucket, 0))
-            if cnt == 0: continue
-            c = WV_COLORS[bucket]
-            bar_w = round(cnt / n * 100) if n else 0
-            wv_rows += f'''<div style="margin-bottom:5px;">
-  <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
-    <span style="color:{MUTED};font-size:.6rem;">{bucket}</span>
-    <span style="color:{c};font-weight:700;font-size:.65rem;">{cnt}</span>
-  </div>
-  <div style="background:{BG};border-radius:4px;height:4px;overflow:hidden;">
-    <div style="background:{c};width:{bar_w}%;height:4px;border-radius:4px;"></div>
-  </div>
-</div>'''
+            cnt  = int(wv_counts.get(bucket, 0))
+            c    = WV_COLORS[bucket]
+            bar_w = round(cnt / n * 100) if n and cnt else 0
+            cnt_col  = c if cnt else "rgba(100,116,139,.3)"
+            bar_col  = c if cnt else "rgba(203,218,251,.4)"
+            wv_rows += (
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.55rem;">'
+                f'<span style="color:{MUTED};font-size:.57rem;width:52px;flex-shrink:0;">{bucket}</span>'
+                f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
+                f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
+                f'<span style="color:{cnt_col};font-weight:700;font-size:.62rem;width:18px;text-align:right;">{cnt}</span>'
+                f'</div>'
+            )
 
         with pcols[i]:
-            st.markdown(f"""<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;padding:1.2rem 1rem;border-top:4px solid {top};box-shadow:0 2px 10px rgba(37,99,235,.08);">
-<div style="color:{MUTED};font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.5rem;min-height:2.4rem;display:flex;align-items:flex-end;">{phase}</div>
-<div style="color:{TEXT};font-size:2rem;font-weight:800;line-height:1;margin-bottom:.1rem;">{n}</div>
-<div style="color:{MUTED};font-size:.6rem;margin-bottom:.4rem;">Leads</div>
-<div style="color:{BLUE};font-size:.9rem;font-weight:700;margin-bottom:.9rem;">{fmt_eur(val)}</div>
-<div style="border-top:1px solid {BDR};padding-top:.7rem;">{wv_rows if wv_rows else f'<span style="color:{GREEN};font-size:.6rem;">✓ Alle WV gesetzt</span>'}</div>
-</div>""", unsafe_allow_html=True)
+            st.markdown(
+                f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
+                f'padding:1rem .85rem;border-top:4px solid {top};box-shadow:0 2px 10px rgba(37,99,235,.08);">'
+                f'<div style="color:{BLUE};font-size:.58rem;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:.09em;min-height:2.3rem;display:flex;align-items:flex-end;'
+                f'margin-bottom:.45rem;">{phase}</div>'
+                f'<div style="color:{TEXT};font-size:1.9rem;font-weight:800;line-height:1;">{n}</div>'
+                f'<div style="color:{MUTED};font-size:.58rem;margin-bottom:.3rem;">Leads</div>'
+                f'<div style="color:{BLUE};font-size:.82rem;font-weight:700;margin-bottom:.6rem;">{fmt_eur(val)}</div>'
+                f'<div style="border-top:1px solid {BDR};padding-top:.4rem;">{wv_rows}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
 # ── Phasen-Verteilung (visuell) ───────────────────────────────────────────────
 sep("Wo stecken die meisten Leads?")
