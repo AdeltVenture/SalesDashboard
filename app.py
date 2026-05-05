@@ -203,28 +203,38 @@ sep("Pipeline nach Phase")
 
 WV_ORDER  = ["Keine WV", "Überfällig", "≤ 3 Tage", "≤ 5 Tage", "Später"]
 WV_COLORS = {
-    "Überfällig": "#dc2626",   # Rot
-    "Keine WV":   "#f97316",   # Orange
-    "≤ 3 Tage":  "#eab308",   # Gelb
-    "≤ 5 Tage":  "#06b6d4",   # Cyan
-    "Später":     "#64748b",   # Slate
+    "Überfällig": "#dc2626",
+    "Keine WV":   "#f97316",
+    "≤ 3 Tage":  "#eab308",
+    "≤ 5 Tage":  "#06b6d4",
+    "Später":     "#64748b",
 }
 
-def _sorted_phases(phase_vals):
-    remaining = list(phase_vals)
-    result = []
-    for ref in PHASE_ORDER:
-        for p in remaining:
-            if str(p).strip().lower() == ref.strip().lower():
-                result.append(p)
-                remaining.remove(p)
-                break
-    result += remaining
-    return result
-
-phases_in = _sorted_phases(
-    act["Phase"].dropna().unique().tolist() if "Phase" in act.columns else []
+# Phasen sortieren: lookup-dict, case-insensitiv + trim
+_PHASE_RANK = {ref.strip().lower(): i for i, ref in enumerate(PHASE_ORDER)}
+_raw_phases = sorted(
+    act["Phase"].dropna().unique().tolist() if "Phase" in act.columns else [],
+    key=lambda p: _PHASE_RANK.get(str(p).strip().lower(), 999)
 )
+
+# Manuelle Reihenfolge per Session-State (Sidebar-Buttons)
+if "phase_order" not in st.session_state or set(st.session_state.phase_order) != set(_raw_phases):
+    st.session_state.phase_order = _raw_phases
+
+with st.sidebar:
+    st.markdown(f'<p style="color:{MUTED};font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-top:1rem;">Phasen-Reihenfolge</p>', unsafe_allow_html=True)
+    order = st.session_state.phase_order
+    for idx, ph_name in enumerate(order):
+        c1, c2, c3 = st.columns([4, 1, 1])
+        c1.markdown(f'<div style="font-size:.75rem;padding-top:4px;color:{TEXT};">{ph_name}</div>', unsafe_allow_html=True)
+        if idx > 0 and c2.button("↑", key=f"up_{idx}", help="Nach oben"):
+            order[idx], order[idx-1] = order[idx-1], order[idx]
+            st.rerun()
+        if idx < len(order)-1 and c3.button("↓", key=f"dn_{idx}", help="Nach unten"):
+            order[idx], order[idx+1] = order[idx+1], order[idx]
+            st.rerun()
+
+phases_in = st.session_state.phase_order
 
 if phases_in:
     pcols = st.columns(len(phases_in))
