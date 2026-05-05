@@ -109,13 +109,13 @@ def load_csv(raw_bytes):
     df.columns = df.columns.str.strip()
     # Spaltennamen normalisieren für robuste Erkennung
     col_map = {c.lower().strip(): c for c in df.columns}
-    for col in ("Erstellt","earliest_todo_due_at","due_at","Frist"):
+    for col in ("Erstellt","Wiedervorlage","earliest_todo_due_at","due_at","Frist"):
         real = col_map.get(col.lower(), col)
         if real in df.columns:
             df[real] = _parse_date_robust(df[real])
-    # WV-Spalte: nimm die mit den meisten echten Werten (due_at hat Vorrang)
+    # WV-Spalte: nimm die erste mit echten Werten
     _wv_set = False
-    for wv_col in ("Frist","due_at","earliest_todo_due_at"):
+    for wv_col in ("Wiedervorlage","due_at","Frist","earliest_todo_due_at"):
         real = col_map.get(wv_col.lower(), wv_col)
         if real in df.columns and df[real].notna().any():
             df["_wv"] = df[real]
@@ -166,24 +166,7 @@ if not uploaded:
     st.markdown(f'<div style="text-align:center;padding:6rem 2rem;color:{MUTED};font-size:.95rem;">📂 &nbsp; CSV-Export über die Seitenleiste hochladen</div>', unsafe_allow_html=True)
     st.stop()
 
-raw_bytes = uploaded.read()
-df = load_csv(raw_bytes)
-
-with st.sidebar.expander("🔍 Debug WV"):
-    import io as _io
-    for enc in ("utf-8-sig","utf-8","latin-1","cp1252"):
-        try:
-            _rdf = pd.read_csv(_io.BytesIO(raw_bytes), encoding=enc, sep=None, engine="python")
-            break
-        except: continue
-    st.write("### Alle Spalten mit Nicht-Leer-Zählung:")
-    for c in _rdf.columns:
-        n = int(_rdf[c].notna().sum())
-        if n > 0:
-            sample = _rdf[c].dropna().iloc[0]
-            st.write(f"**{c}**: {n}/{len(_rdf)} — z.B. `{sample}`")
-        else:
-            st.write(f"{c}: leer")
+df = load_csv(uploaded.read())
 
 act = df[~df["Ist_Verloren"]].copy()
 if act.empty:
