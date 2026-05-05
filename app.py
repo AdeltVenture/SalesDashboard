@@ -202,7 +202,13 @@ k5.metric("Ohne Wiedervorlage", n_no_wv)
 sep("Pipeline nach Phase")
 
 WV_ORDER  = ["Überfällig", "Keine WV", "≤ 3 Tage", "≤ 5 Tage", "Später"]
-WV_COLORS = {"Überfällig": RED, "Keine WV": ORA, "≤ 3 Tage": YEL, "≤ 5 Tage": BLUE, "Später": GREEN}
+WV_COLORS = {
+    "Überfällig": "#dc2626",   # Rot   – sofort handeln
+    "Keine WV":   "#7c3aed",   # Lila  – klar unterscheidbar von Rot
+    "≤ 3 Tage":  "#d97706",   # Amber – bald fällig
+    "≤ 5 Tage":  "#0ea5e9",   # Hellblau – mittelfristig
+    "Später":     "#16a34a",   # Grün  – alles gut
+}
 
 phases_in  = [p for p in PHASE_ORDER if "Phase" in act.columns and p in act["Phase"].values]
 phases_in += [p for p in (act["Phase"].dropna().unique() if "Phase" in act.columns else []) if p not in PHASE_ORDER]
