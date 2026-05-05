@@ -180,16 +180,6 @@ n_today   = int(act["Flag_WV_Heute"].sum())
 count_col = "Vorgang #" if "Vorgang #" in act.columns else act.columns[0]
 total     = len(act)
 
-# ── Alert ─────────────────────────────────────────────────────────────────────
-alerts = []
-if n_overdue: alerts.append(f"<b>{n_overdue} überfällige WV</b>")
-if n_no_wv:   alerts.append(f"<b>{n_no_wv} ohne Wiedervorlage</b>")
-if n_no_val:  alerts.append(f"<b>{n_no_val} ohne Wert</b>")
-if alerts:
-    st.markdown(f'<div style="background:rgba(220,38,38,.08);border:1.5px solid rgba(220,38,38,.3);border-radius:12px;padding:.9rem 1.25rem;color:{RED};font-size:.875rem;margin-bottom:1rem;">⚠️ &nbsp; Handlungsbedarf: {" &nbsp;·&nbsp; ".join(alerts)}</div>', unsafe_allow_html=True)
-else:
-    st.markdown(f'<div style="background:rgba(22,163,74,.08);border:1.5px solid rgba(22,163,74,.3);border-radius:12px;padding:.9rem 1.25rem;color:{GREEN};font-size:.875rem;margin-bottom:1rem;">✓ &nbsp; Pipeline vollständig</div>', unsafe_allow_html=True)
-
 # ── KPIs ─────────────────────────────────────────────────────────────────────
 k1,k2,k3,k4,k5 = st.columns(5)
 k1.metric("Aktive Leads",       total)
@@ -204,10 +194,10 @@ sep("Pipeline nach Phase")
 WV_ORDER  = ["Überfällig", "Keine WV", "≤ 3 Tage", "≤ 5 Tage", "Später"]
 WV_COLORS = {
     "Überfällig": "#dc2626",   # Rot   – sofort handeln
-    "Keine WV":   "#7c3aed",   # Lila  – klar unterscheidbar von Rot
-    "≤ 3 Tage":  "#d97706",   # Amber – bald fällig
-    "≤ 5 Tage":  "#0ea5e9",   # Hellblau – mittelfristig
-    "Später":     "#16a34a",   # Grün  – alles gut
+    "Keine WV":   "#7c3aed",   # Lila  – klar unterscheidbar
+    "≤ 3 Tage":  "#f59e0b",   # Amber – bald fällig
+    "≤ 5 Tage":  "#06b6d4",   # Cyan  – mittelfristig
+    "Später":     "#8b5cf6",   # Violett – zeitlich ausreichend
 }
 
 phases_in  = [p for p in PHASE_ORDER if "Phase" in act.columns and p in act["Phase"].values]
