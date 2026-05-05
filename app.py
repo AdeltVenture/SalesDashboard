@@ -33,6 +33,7 @@ section[data-testid="stSidebar"]{{background:{CARD};border-right:1px solid {BDR}
 [data-testid="metric-container"]{{background:{CARD};border:1px solid {BDR};border-radius:14px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(37,99,235,.07);}}
 [data-testid="metric-container"] label{{color:{MUTED}!important;font-size:.7rem!important;text-transform:uppercase;letter-spacing:.08em;}}
 [data-testid="metric-container"] [data-testid="stMetricValue"]{{color:{TEXT}!important;font-size:1.9rem!important;font-weight:800;}}
+[data-testid="metric-container"] [data-testid="stMetricDelta"]{{display:none;}}
 .stExpander{{background:{CARD}!important;border:1px solid {BDR}!important;border-radius:12px!important;box-shadow:0 2px 6px rgba(37,99,235,.06)!important;}}
 .stExpander summary{{color:{TEXT}!important;font-weight:600;}}
 hr{{border-color:{BDR}!important;}}
@@ -193,11 +194,11 @@ sep("Pipeline nach Phase")
 
 WV_ORDER  = ["Überfällig", "Keine WV", "≤ 3 Tage", "≤ 5 Tage", "Später"]
 WV_COLORS = {
-    "Überfällig": "#dc2626",   # Rot   – sofort handeln
-    "Keine WV":   "#7c3aed",   # Lila  – klar unterscheidbar
-    "≤ 3 Tage":  "#f59e0b",   # Amber – bald fällig
-    "≤ 5 Tage":  "#06b6d4",   # Cyan  – mittelfristig
-    "Später":     "#8b5cf6",   # Violett – zeitlich ausreichend
+    "Überfällig": "#dc2626",   # Rot
+    "Keine WV":   "#f97316",   # Orange
+    "≤ 3 Tage":  "#eab308",   # Gelb
+    "≤ 5 Tage":  "#06b6d4",   # Cyan
+    "Später":     "#64748b",   # Slate
 }
 
 phases_in  = [p for p in PHASE_ORDER if "Phase" in act.columns and p in act["Phase"].values]
