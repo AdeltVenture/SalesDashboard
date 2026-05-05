@@ -50,13 +50,13 @@ def _is_lost(phase):
     return any(kw in str(phase).lower() for kw in LOST_KEYWORDS)
 
 def _parse_date_robust(series):
-    """Parst Datumsspalten mit mehreren Formaten (ISO, deutsch, mit/ohne TZ)."""
+    """Parst Datumsspalten – deutsches Format zuerst, dann ISO/UTC."""
     for kw in [
-        dict(utc=True, errors="coerce"),
-        dict(errors="coerce", dayfirst=True),
         dict(errors="coerce", format="%d.%m.%Y"),
         dict(errors="coerce", format="%d.%m.%Y %H:%M"),
         dict(errors="coerce", format="%d.%m.%Y %H:%M:%S"),
+        dict(utc=True, errors="coerce"),
+        dict(errors="coerce", dayfirst=True),
     ]:
         parsed = pd.to_datetime(series, **kw)
         if parsed.notna().any():
