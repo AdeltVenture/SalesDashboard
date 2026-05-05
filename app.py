@@ -232,20 +232,26 @@ if phases_in:
         with pcols[i]:
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
-                f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);">'
-                # Phase-Name + Lead-Count + % auf eine Zeile
-                f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;gap:.3rem;">'
+                f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
+                f'min-height:420px;display:flex;flex-direction:column;">'
+                # Phase-Name + Lead-Count + % auf eine Zeile (fixed height)
+                f'<div style="display:flex;align-items:center;justify-content:space-between;'
+                f'height:2.2rem;margin-bottom:.5rem;gap:.3rem;flex-shrink:0;">'
                 f'<div style="color:{BLUE};font-size:.62rem;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:.08em;line-height:1.4;flex:1;overflow:hidden;text-overflow:ellipsis;">{phase}</div>'
+                f'letter-spacing:.08em;line-height:1.1;white-space:nowrap;overflow:hidden;'
+                f'text-overflow:ellipsis;flex:1;">{phase}</div>'
                 f'<div style="display:flex;align-items:center;gap:.35rem;white-space:nowrap;flex-shrink:0;">'
                 f'<span style="color:{TEXT};font-size:1.85rem;font-weight:800;line-height:1;">{n}</span>'
                 f'<span style="background:{LBLUE};color:{BLUE};font-size:.62rem;font-weight:700;'
-                f'padding:2px 7px;border-radius:20px;">{pct} %</span>'
+                f'padding:2px 7px;border-radius:20px;height:1.4rem;display:flex;align-items:center;">{pct} %</span>'
                 f'</div>'
                 f'</div>'
-                f'<div style="color:{MUTED};font-size:.67rem;margin-bottom:.35rem;">Leads</div>'
-                f'<div style="color:{BLUE};font-size:.82rem;font-weight:700;margin-bottom:.55rem;">{fmt_eur(val)}</div>'
-                f'<div style="border-top:1px solid {BDR};padding-top:.4rem;">{wv_rows}</div>'
+                f'<div style="color:{MUTED};font-size:.67rem;height:1rem;'
+                f'line-height:1rem;margin-bottom:.3rem;flex-shrink:0;">Leads</div>'
+                f'<div style="color:{BLUE};font-size:.82rem;font-weight:700;height:1.2rem;'
+                f'line-height:1.2rem;margin-bottom:.5rem;flex-shrink:0;">{fmt_eur(val)}</div>'
+                f'<div style="border-top:1px solid {BDR};padding-top:.4rem;flex:1;'
+                f'overflow-y:auto;display:flex;flex-direction:column;gap:0;">{wv_rows}</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
