@@ -29,6 +29,7 @@ ORA     = "#ea580c"
 st.markdown(f"""<style>
 [data-testid="stAppViewContainer"]{{background:{BG};}}
 [data-testid="stHeader"]{{background:transparent;}}
+[data-testid="stToolbar"]{{display:none!important;}}
 section[data-testid="stSidebar"]{{background:{CARD};border-right:1px solid {BDR};box-shadow:2px 0 12px rgba(37,99,235,.08);}}
 [data-testid="metric-container"]{{background:{CARD};border:1px solid {BDR};border-radius:14px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(37,99,235,.07);}}
 [data-testid="metric-container"] label{{color:{MUTED}!important;font-size:.7rem!important;text-transform:uppercase;letter-spacing:.08em;}}
@@ -207,39 +208,50 @@ phases_in += [p for p in (act["Phase"].dropna().unique() if "Phase" in act.colum
 if phases_in:
     pcols = st.columns(len(phases_in))
     for i, phase in enumerate(phases_in):
-        ph   = act[act["Phase"] == phase] if "Phase" in act.columns else act.iloc[0:0]
-        n    = len(ph)
-        val  = ph["Potenzieller Wert"].sum() if "Potenzieller Wert" in ph.columns else 0
-        n_ov = int(ph["Flag_WV_Ueberfaellig"].sum())
-        top  = RED if n_ov else BLUE
+        ph    = act[act["Phase"] == phase] if "Phase" in act.columns else act.iloc[0:0]
+        n     = len(ph)
+        val   = ph["Potenzieller Wert"].sum() if "Potenzieller Wert" in ph.columns else 0
+        n_ov  = int(ph["Flag_WV_Ueberfaellig"].sum())
+        n_wv  = int(ph["Flag_Keine_WV"].sum())
+        pct   = round(n / total * 100) if total else 0
+        # Status-Dot: Rot = überfällig, Orange = ohne WV, Slate = OK
+        dot   = "#dc2626" if n_ov else ("#f97316" if n_wv else "#94a3b8")
 
         wv_counts = ph["WV_Bucket"].value_counts() if "WV_Bucket" in ph.columns else pd.Series(dtype=int)
         wv_rows = ""
         for bucket in WV_ORDER:
-            cnt  = int(wv_counts.get(bucket, 0))
-            c    = WV_COLORS[bucket]
-            bar_w = round(cnt / n * 100) if n and cnt else 0
-            cnt_col  = c if cnt else "rgba(100,116,139,.3)"
-            bar_col  = c if cnt else "rgba(203,218,251,.4)"
+            cnt     = int(wv_counts.get(bucket, 0))
+            c       = WV_COLORS[bucket]
+            bar_w   = round(cnt / n * 100) if n and cnt else 0
+            cnt_col = c if cnt else "rgba(100,116,139,.28)"
+            bar_col = c if cnt else "rgba(203,218,251,.35)"
             wv_rows += (
-                f'<div style="display:flex;align-items:center;gap:5px;height:1.55rem;">'
-                f'<span style="color:{MUTED};font-size:.57rem;width:52px;flex-shrink:0;">{bucket}</span>'
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.7rem;">'
+                f'<span style="color:{MUTED};font-size:.67rem;width:54px;flex-shrink:0;white-space:nowrap;">{bucket}</span>'
                 f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
                 f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
-                f'<span style="color:{cnt_col};font-weight:700;font-size:.62rem;width:18px;text-align:right;">{cnt}</span>'
+                f'<span style="color:{cnt_col};font-weight:700;font-size:.72rem;width:20px;text-align:right;">{cnt}</span>'
                 f'</div>'
             )
 
         with pcols[i]:
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
-                f'padding:1rem .85rem;border-top:4px solid {top};box-shadow:0 2px 10px rgba(37,99,235,.08);">'
-                f'<div style="color:{BLUE};font-size:.58rem;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:.09em;min-height:2.3rem;display:flex;align-items:flex-end;'
-                f'margin-bottom:.45rem;">{phase}</div>'
-                f'<div style="color:{TEXT};font-size:1.9rem;font-weight:800;line-height:1;">{n}</div>'
-                f'<div style="color:{MUTED};font-size:.58rem;margin-bottom:.3rem;">Leads</div>'
-                f'<div style="color:{BLUE};font-size:.82rem;font-weight:700;margin-bottom:.6rem;">{fmt_eur(val)}</div>'
+                f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);">'
+                # Header: Phase-Name + Status-Dot
+                f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem;">'
+                f'<div style="color:{BLUE};font-size:.62rem;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:.08em;line-height:1.35;flex:1;margin-right:.4rem;">{phase}</div>'
+                f'<div style="width:9px;height:9px;border-radius:50%;background:{dot};flex-shrink:0;margin-top:3px;" title="Status"></div>'
+                f'</div>'
+                # Lead-Count + Prozent-Badge
+                f'<div style="display:flex;align-items:baseline;gap:.4rem;margin-bottom:.15rem;">'
+                f'<span style="color:{TEXT};font-size:1.85rem;font-weight:800;line-height:1;">{n}</span>'
+                f'<span style="background:{LBLUE};color:{BLUE};font-size:.62rem;font-weight:700;'
+                f'padding:2px 7px;border-radius:20px;white-space:nowrap;">{pct} %</span>'
+                f'</div>'
+                f'<div style="color:{MUTED};font-size:.67rem;margin-bottom:.35rem;">Leads</div>'
+                f'<div style="color:{BLUE};font-size:.82rem;font-weight:700;margin-bottom:.55rem;">{fmt_eur(val)}</div>'
                 f'<div style="border-top:1px solid {BDR};padding-top:.4rem;">{wv_rows}</div>'
                 f'</div>',
                 unsafe_allow_html=True
