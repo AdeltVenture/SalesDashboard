@@ -29,7 +29,6 @@ ORA     = "#ea580c"
 st.markdown(f"""<style>
 [data-testid="stAppViewContainer"]{{background:{BG};}}
 [data-testid="stHeader"]{{background:transparent;}}
-[data-testid="stToolbar"]{{display:none!important;}}
 section[data-testid="stSidebar"]{{background:{CARD};border-right:1px solid {BDR};box-shadow:2px 0 12px rgba(37,99,235,.08);}}
 [data-testid="metric-container"]{{background:{CARD};border:1px solid {BDR};border-radius:14px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(37,99,235,.07);}}
 [data-testid="metric-container"] label{{color:{MUTED}!important;font-size:.7rem!important;text-transform:uppercase;letter-spacing:.08em;}}
