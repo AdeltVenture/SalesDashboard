@@ -43,8 +43,11 @@ p,span,div,label{{color:{TEXT};}}
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 def _phase_key(p):
-    try: return PHASE_ORDER.index(p)
-    except: return len(PHASE_ORDER)
+    p_norm = str(p).strip().lower()
+    for i, ref in enumerate(PHASE_ORDER):
+        if ref.strip().lower() == p_norm:
+            return i
+    return len(PHASE_ORDER)
 
 def _is_lost(phase):
     if pd.isna(phase): return False
@@ -108,6 +111,9 @@ def load_csv(raw_bytes):
     if df is None:
         st.error("CSV konnte nicht gelesen werden."); st.stop()
     df.columns = df.columns.str.strip()
+    # Phasennamen trimmen damit Leerzeichen in der CSV kein Problem machen
+    if "Phase" in df.columns:
+        df["Phase"] = df["Phase"].astype(str).str.strip()
     # Spaltennamen normalisieren für robuste Erkennung
     col_map = {c.lower().strip(): c for c in df.columns}
     for col in ("Erstellt","Wiedervorlage","earliest_todo_due_at","due_at","Frist"):
@@ -201,8 +207,21 @@ WV_COLORS = {
     "Später":     "#64748b",   # Slate
 }
 
-phases_in  = [p for p in PHASE_ORDER if "Phase" in act.columns and p in act["Phase"].values]
-phases_in += [p for p in (act["Phase"].dropna().unique() if "Phase" in act.columns else []) if p not in PHASE_ORDER]
+def _sorted_phases(phase_vals):
+    remaining = list(phase_vals)
+    result = []
+    for ref in PHASE_ORDER:
+        for p in remaining:
+            if str(p).strip().lower() == ref.strip().lower():
+                result.append(p)
+                remaining.remove(p)
+                break
+    result += remaining
+    return result
+
+phases_in = _sorted_phases(
+    act["Phase"].dropna().unique().tolist() if "Phase" in act.columns else []
+)
 
 if phases_in:
     pcols = st.columns(len(phases_in))
