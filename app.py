@@ -292,6 +292,13 @@ if phases_in:
                 unsafe_allow_html=True
             )
 
+# ── Top-Chancen (Seite 1, direkt nach Phase-Cards) ───────────────────────────
+if "Potenzieller Wert" in act.columns:
+    top = act[act["Potenzieller Wert"] > 0].sort_values("Potenzieller Wert", ascending=False).head(10)
+    if not top.empty:
+        sep("Top-Chancen")
+        lead_table(top, "Potenzieller Wert")
+
 # ── Phasen-Verteilung (visuell) ───────────────────────────────────────────────
 sep("Wo stecken die meisten Leads?")
 
@@ -370,13 +377,6 @@ with ec2:
     with st.expander(f"€  Ohne Wert  ({len(no_val)})", expanded=False):
         if not no_val.empty: lead_table(no_val)
         else: st.markdown(f'<p style="color:{GREEN};">✓ Alle Leads haben Wert</p>', unsafe_allow_html=True)
-
-# ── Top-Chancen ───────────────────────────────────────────────────────────────
-if "Potenzieller Wert" in act.columns:
-    top = act[act["Potenzieller Wert"] > 0].sort_values("Potenzieller Wert", ascending=False).head(10)
-    if not top.empty:
-        sep("Top-Chancen")
-        lead_table(top, "Potenzieller Wert")
 
 # ── Alle Leads ────────────────────────────────────────────────────────────────
 sep("Alle aktiven Leads")
