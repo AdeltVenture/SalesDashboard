@@ -309,26 +309,31 @@ if "Potenzieller Wert" in act.columns:
     top = act[act["Potenzieller Wert"] > 0].sort_values("Potenzieller Wert", ascending=False).head(10)
     if not top.empty:
         sep("Top-Chancen")
-        lead_table(top, "Potenzieller Wert")
+        TCOLS = ["Vorgang #","Titel","Typ","Phase","Zuständig","Kontakte","Potenzieller Wert"]
+        tcols = [c for c in TCOLS if c in top.columns]
+        hdr = "".join(f'<th style="padding:5px 8px;text-align:left;font-size:.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid {BDR};white-space:nowrap;">{c}</th>' for c in tcols)
+        rows_html = ""
+        for _, r in top[tcols].iterrows():
+            cells = ""
+            for c in tcols:
+                v = fmt_eur(r[c]) if c == "Potenzieller Wert" else str(r[c]) if not pd.isna(r[c]) else ""
+                fw = "700" if c == "Potenzieller Wert" else "400"
+                col = BLUE if c == "Potenzieller Wert" else TEXT
+                cells += f'<td style="padding:4px 8px;font-size:.72rem;color:{col};font-weight:{fw};border-bottom:1px solid {BDR};white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;">{v}</td>'
+            rows_html += f"<tr>{cells}</tr>"
+        st.markdown(
+            f'<div style="background:{CARD};border:1px solid {BDR};border-radius:12px;overflow:hidden;">'
+            f'<table style="width:100%;border-collapse:collapse;"><thead><tr>{hdr}</tr></thead>'
+            f'<tbody>{rows_html}</tbody></table></div>',
+            unsafe_allow_html=True)
 
 # Marker: alles ab hier wird beim Drucken ausgeblendet
 st.markdown('<span id="page2-marker" style="display:none;"></span>', unsafe_allow_html=True)
 
-# Print-Button + JS: versteckt Seite-2-Inhalte vor dem Drucken
+# JS: Seite-2-Inhalte vor dem Drucken verstecken (kein Button, läuft via Ctrl+P)
 components.html("""<script>
 (function(){
   var w = window.parent, d = w.document;
-  if (!d.getElementById('loyago-print-btn')) {
-    var btn = d.createElement('button');
-    btn.id = 'loyago-print-btn';
-    btn.textContent = '\U0001F5A8 Drucken';
-    btn.title = 'Seite 1 drucken';
-    btn.style.cssText = 'position:fixed;top:10px;right:60px;z-index:9999;background:#2563eb;'
-      + 'color:#fff;border:none;border-radius:8px;padding:5px 15px;font-size:.78rem;'
-      + 'font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,.35);letter-spacing:.02em;';
-    btn.onclick = function(){ w.print(); };
-    d.body.appendChild(btn);
-  }
   if (!w._loyPrint) {
     w._loyPrint = true;
     w.addEventListener('beforeprint', function(){
