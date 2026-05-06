@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -41,6 +42,15 @@ div[data-testid="stVerticalBlock"]>div{{gap:.5rem!important;}}
 hr{{border-color:{BDR}!important;}}
 p,span,div,label{{color:{TEXT};}}
 [data-testid="stDataFrame"]{{border-radius:10px;}}
+@media print{{
+  section[data-testid="stSidebar"],
+  [data-testid="stHeader"],
+  [data-testid="stToolbar"],
+  [data-testid="stDecoration"],
+  [data-testid="stStatusWidget"],
+  #loyago-print-btn {{ display:none!important; }}
+  [data-testid="block-container"]{{padding:0!important;}}
+}}
 </style>""", unsafe_allow_html=True)
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -300,6 +310,44 @@ if "Potenzieller Wert" in act.columns:
     if not top.empty:
         sep("Top-Chancen")
         lead_table(top, "Potenzieller Wert")
+
+# Marker: alles ab hier wird beim Drucken ausgeblendet
+st.markdown('<span id="page2-marker" style="display:none;"></span>', unsafe_allow_html=True)
+
+# Print-Button + JS: versteckt Seite-2-Inhalte vor dem Drucken
+components.html("""<script>
+(function(){
+  var w = window.parent, d = w.document;
+  if (!d.getElementById('loyago-print-btn')) {
+    var btn = d.createElement('button');
+    btn.id = 'loyago-print-btn';
+    btn.textContent = '\U0001F5A8 Drucken';
+    btn.title = 'Seite 1 drucken';
+    btn.style.cssText = 'position:fixed;top:10px;right:60px;z-index:9999;background:#2563eb;'
+      + 'color:#fff;border:none;border-radius:8px;padding:5px 15px;font-size:.78rem;'
+      + 'font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,.35);letter-spacing:.02em;';
+    btn.onclick = function(){ w.print(); };
+    d.body.appendChild(btn);
+  }
+  if (!w._loyPrint) {
+    w._loyPrint = true;
+    w.addEventListener('beforeprint', function(){
+      var m = d.getElementById('page2-marker');
+      if (!m) return;
+      var vb = m.closest('[data-testid="stVerticalBlock"]');
+      if (!vb) return;
+      var row = m;
+      while (row.parentElement !== vb) row = row.parentElement;
+      w._p2 = [];
+      var el = row;
+      while (el) { el.style.setProperty('display','none','important'); w._p2.push(el); el = el.nextElementSibling; }
+    });
+    w.addEventListener('afterprint', function(){
+      if (w._p2) { w._p2.forEach(function(el){ el.style.removeProperty('display'); }); w._p2 = null; }
+    });
+  }
+})();
+</script>""", height=1)
 
 # ── Phasen-Verteilung (visuell) ───────────────────────────────────────────────
 sep("Wo stecken die meisten Leads?")
