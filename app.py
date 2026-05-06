@@ -42,14 +42,22 @@ div[data-testid="stVerticalBlock"]>div{{gap:.5rem!important;}}
 hr{{border-color:{BDR}!important;}}
 p,span,div,label{{color:{TEXT};}}
 [data-testid="stDataFrame"]{{border-radius:10px;}}
+@page{{margin:5mm 6mm;}}
 @media print{{
   section[data-testid="stSidebar"],
   [data-testid="stHeader"],
   [data-testid="stToolbar"],
   [data-testid="stDecoration"],
   [data-testid="stStatusWidget"],
-  #loyago-print-btn {{ display:none!important; }}
-  [data-testid="block-container"]{{padding:0!important;}}
+  iframe{{display:none!important;}}
+  [data-testid="block-container"]{{padding:0!important;margin:0!important;max-width:100%!important;}}
+  [data-testid="stVerticalBlock"]>div{{gap:0!important;margin-bottom:0!important;padding-bottom:0!important;}}
+  [data-testid="stHorizontalBlock"]{{gap:4px!important;}}
+  [data-testid="metric-container"]{{padding:.35rem .6rem!important;border-radius:8px!important;}}
+  [data-testid="metric-container"] [data-testid="stMetricValue"]{{font-size:1.3rem!important;}}
+  [data-testid="metric-container"] label{{font-size:.6rem!important;}}
+  div[data-testid="stVerticalBlockBorderWrapper"]{{padding:0!important;}}
+  .element-container,.stMarkdown{{margin:0!important;padding:0!important;}}
 }}
 </style>""", unsafe_allow_html=True)
 
@@ -92,9 +100,9 @@ def fmt_eur(val):
 
 def sep(title=""):
     if title:
-        st.markdown(f'<div style="color:{MUTED};font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin:1rem 0 .5rem;padding-bottom:.4rem;border-bottom:1px solid {BDR};">{title}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="color:{MUTED};font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin:.6rem 0 .35rem;padding-bottom:.3rem;border-bottom:1px solid {BDR};">{title}</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div style="border-top:1px solid {BDR};margin:.75rem 0;"></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="border-top:1px solid {BDR};margin:.5rem 0;"></div>', unsafe_allow_html=True)
 
 def pc(h=400):
     return dict(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
