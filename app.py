@@ -29,11 +29,13 @@ ORA     = "#ea580c"
 st.markdown(f"""<style>
 [data-testid="stAppViewContainer"]{{background:{BG};}}
 [data-testid="stHeader"]{{background:transparent;}}
+[data-testid="block-container"]{{padding-top:1.2rem!important;padding-bottom:1rem!important;}}
 section[data-testid="stSidebar"]{{background:{CARD};border-right:1px solid {BDR};box-shadow:2px 0 12px rgba(37,99,235,.08);}}
-[data-testid="metric-container"]{{background:{CARD};border:1px solid {BDR};border-radius:14px;padding:1.25rem 1.5rem;box-shadow:0 2px 8px rgba(37,99,235,.07);}}
-[data-testid="metric-container"] label{{color:{MUTED}!important;font-size:.7rem!important;text-transform:uppercase;letter-spacing:.08em;}}
-[data-testid="metric-container"] [data-testid="stMetricValue"]{{color:{TEXT}!important;font-size:1.9rem!important;font-weight:800;}}
+[data-testid="metric-container"]{{background:{CARD};border:1px solid {BDR};border-radius:12px;padding:.75rem 1rem;box-shadow:0 2px 8px rgba(37,99,235,.07);}}
+[data-testid="metric-container"] label{{color:{MUTED}!important;font-size:.68rem!important;text-transform:uppercase;letter-spacing:.08em;}}
+[data-testid="metric-container"] [data-testid="stMetricValue"]{{color:{TEXT}!important;font-size:1.7rem!important;font-weight:800;}}
 [data-testid="metric-container"] [data-testid="stMetricDelta"]{{display:none;}}
+div[data-testid="stVerticalBlock"]>div{{gap:.5rem!important;}}
 .stExpander{{background:{CARD}!important;border:1px solid {BDR}!important;border-radius:12px!important;box-shadow:0 2px 6px rgba(37,99,235,.06)!important;}}
 .stExpander summary{{color:{TEXT}!important;font-weight:600;}}
 hr{{border-color:{BDR}!important;}}
@@ -80,9 +82,9 @@ def fmt_eur(val):
 
 def sep(title=""):
     if title:
-        st.markdown(f'<div style="color:{MUTED};font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin:2rem 0 .75rem;padding-bottom:.5rem;border-bottom:1px solid {BDR};">{title}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="color:{MUTED};font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin:1rem 0 .5rem;padding-bottom:.4rem;border-bottom:1px solid {BDR};">{title}</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div style="border-top:1px solid {BDR};margin:1.5rem 0;"></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="border-top:1px solid {BDR};margin:.75rem 0;"></div>', unsafe_allow_html=True)
 
 def pc(h=400):
     return dict(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
@@ -165,11 +167,11 @@ with st.sidebar:
 # ── header ────────────────────────────────────────────────────────────────────
 hc1, hc2, hc3 = st.columns([2,5,2])
 with hc1:
-    st.markdown(f'<div style="margin-top:8px;"><span style="background:#1e293b;color:{LBLUE};font-weight:900;font-size:1.5rem;letter-spacing:-.02em;padding:7px 16px;border-radius:8px;font-family:Arial Black,sans-serif;">LOYAGO</span></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:2px;"><span style="background:#1e293b;color:{LBLUE};font-weight:900;font-size:1.4rem;letter-spacing:-.02em;padding:5px 14px;border-radius:8px;font-family:Arial Black,sans-serif;">LOYAGO</span></div>', unsafe_allow_html=True)
 with hc2:
-    st.markdown(f'<div style="padding-top:14px;color:{MUTED};font-size:.7rem;text-transform:uppercase;letter-spacing:.18em;font-weight:600;">Sales Cockpit</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="padding-top:10px;color:{MUTED};font-size:.7rem;text-transform:uppercase;letter-spacing:.18em;font-weight:600;">Sales Cockpit</div>', unsafe_allow_html=True)
 with hc3:
-    st.markdown(f'<div style="text-align:right;padding-top:12px;color:{BLUE};font-size:.85rem;font-weight:600;">{date.today().strftime("%d. %B %Y")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:right;padding-top:8px;color:{BLUE};font-size:.82rem;font-weight:600;">{date.today().strftime("%d. %B %Y")}</div>', unsafe_allow_html=True)
 sep()
 
 if not uploaded:
