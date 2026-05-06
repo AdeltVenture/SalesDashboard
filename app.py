@@ -244,6 +244,7 @@ if phases_in:
         val   = ph["Potenzieller Wert"].sum() if "Potenzieller Wert" in ph.columns else 0
         pct   = round(n / total * 100) if total else 0
 
+        n_no_val_ph = int(ph["Flag_Kein_Wert"].sum()) if "Flag_Kein_Wert" in ph.columns else 0
         wv_counts = ph["WV_Bucket"].value_counts() if "WV_Bucket" in ph.columns else pd.Series(dtype=int)
         wv_rows = ""
         for bucket in WV_ORDER:
@@ -253,35 +254,39 @@ if phases_in:
             cnt_col = c if cnt else "rgba(100,116,139,.28)"
             bar_col = c if cnt else "rgba(203,218,251,.35)"
             wv_rows += (
-                f'<div style="display:flex;align-items:center;gap:5px;height:1.7rem;">'
-                f'<span style="color:{MUTED};font-size:.67rem;width:54px;flex-shrink:0;white-space:nowrap;">{bucket}</span>'
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.6rem;">'
+                f'<span style="color:{MUTED};font-size:.72rem;width:58px;flex-shrink:0;white-space:nowrap;">{bucket}</span>'
                 f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
                 f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
-                f'<span style="color:{cnt_col};font-weight:700;font-size:.72rem;width:20px;text-align:right;">{cnt}</span>'
+                f'<span style="color:{cnt_col};font-weight:700;font-size:.76rem;width:22px;text-align:right;">{cnt}</span>'
                 f'</div>'
             )
+
+        no_val_hint = ""
+        if n_no_val_ph:
+            no_val_hint = (f'<div style="color:{MUTED};font-size:.68rem;margin-top:.15rem;'
+                           f'flex-shrink:0;">{n_no_val_ph} ohne Wert</div>')
 
         with pcols[i]:
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
                 f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
-                f'min-height:440px;display:flex;flex-direction:column;">'
-                # Phase-Name oben – darf umbrechen, feste Höhe für 2 Zeilen
-                f'<div style="color:{BLUE};font-size:.62rem;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:.08em;line-height:1.35;height:1.7rem;overflow:hidden;'
+                f'display:flex;flex-direction:column;">'
+                # Phase-Name
+                f'<div style="color:{BLUE};font-size:.68rem;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:.08em;line-height:1.35;height:1.8rem;overflow:hidden;'
                 f'margin-bottom:.4rem;flex-shrink:0;">{phase}</div>'
-                # Zahl + Badge darunter
+                # Zahl + Badge
                 f'<div style="display:flex;align-items:center;gap:.4rem;'
-                f'margin-bottom:.15rem;flex-shrink:0;">'
-                f'<span style="color:{TEXT};font-size:1.85rem;font-weight:800;line-height:1;">{n}</span>'
-                f'<span style="background:{LBLUE};color:{BLUE};font-size:.62rem;font-weight:700;'
-                f'padding:2px 7px;border-radius:20px;">{pct} %</span>'
+                f'margin-bottom:.1rem;flex-shrink:0;">'
+                f'<span style="color:{TEXT};font-size:2rem;font-weight:800;line-height:1;">{n}</span>'
+                f'<span style="background:{LBLUE};color:{BLUE};font-size:.66rem;font-weight:700;'
+                f'padding:2px 8px;border-radius:20px;">{pct} %</span>'
                 f'</div>'
-                f'<div style="color:{MUTED};font-size:.67rem;height:1rem;'
-                f'line-height:1rem;margin-bottom:.3rem;flex-shrink:0;">Leads</div>'
-                f'<div style="color:{BLUE};font-size:.82rem;font-weight:700;height:1.2rem;'
-                f'line-height:1.2rem;margin-bottom:.5rem;flex-shrink:0;">{fmt_eur(val)}</div>'
-                f'<div style="border-top:1px solid {BDR};padding-top:.4rem;flex:1;'
+                f'<div style="color:{MUTED};font-size:.72rem;margin-bottom:.25rem;flex-shrink:0;">Leads</div>'
+                f'<div style="color:{BLUE};font-size:.88rem;font-weight:700;flex-shrink:0;">{fmt_eur(val)}</div>'
+                f'{no_val_hint}'
+                f'<div style="border-top:1px solid {BDR};margin-top:.5rem;padding-top:.35rem;'
                 f'display:flex;flex-direction:column;">{wv_rows}</div>'
                 f'</div>',
                 unsafe_allow_html=True
