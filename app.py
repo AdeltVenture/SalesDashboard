@@ -152,7 +152,7 @@ def load_csv(raw_bytes):
         df["_wv"] = pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
     for col in ("Potenzieller Wert","Provision","attr_case_potential_value"):
         if col in df.columns:
-            df[col] = _parse_number(df[col]).fillna(0)
+            df[col] = _parse_number(df[col])  # NaN bleibt NaN (= kein Eintrag), 0 bleibt 0
     if "Aufgaben" in df.columns:
         df["Aufgaben"] = pd.to_numeric(df["Aufgaben"], errors="coerce").fillna(0)
     today = pd.Timestamp(date.today())
@@ -163,7 +163,7 @@ def load_csv(raw_bytes):
     in3  = today + pd.Timedelta(days=3)
     in5  = today + pd.Timedelta(days=5)
     df["Flag_Keine_WV"]        = (~df["Ist_Verloren"]) & todo.isna()
-    df["Flag_Kein_Wert"]       = (~df["Ist_Verloren"]) & (df.get("Potenzieller Wert", 0) == 0)
+    df["Flag_Kein_Wert"]       = (~df["Ist_Verloren"]) & (df["Potenzieller Wert"].isna() if "Potenzieller Wert" in df.columns else True)
     df["Flag_WV_Ueberfaellig"] = (~df["Ist_Verloren"]) & todo.notna() & (todo < today)
     df["Flag_WV_Heute"]        = (~df["Ist_Verloren"]) & todo.notna() & (todo.dt.date == date.today())
     df["WV_Bucket"] = "Später"
