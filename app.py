@@ -7,7 +7,7 @@ from datetime import date
 
 st.set_page_config(page_title="LOYAGO · Sales Cockpit", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
-LOST_KEYWORDS = ["kein interesse", "verloren", "abgeschlossen", "closed lost", "closed won", "gewonnen", "won", "lost"]
+LOST_KEYWORDS = ["kein interesse", "verloren", "abgeschlossen", "closed lost", "closed won", "gewonnen", "won", "lost", "provisionskontrolle"]
 PHASE_ORDER = [
     "Termin offen", "Termin vereinbart", "Beratung läuft",
     "Angebot raus", "Antrag raus", "Nachbearbeitung", "Policiert", "After Sales",
