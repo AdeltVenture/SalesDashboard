@@ -7,7 +7,7 @@ from datetime import date
 st.set_page_config(page_title="LOYAGO · Welcome Calls", page_icon="📞", layout="wide", initial_sidebar_state="expanded")
 
 # Nur "kein Interesse" rausfiltern — alle anderen Phasen bleiben sichtbar
-LOST_KEYWORDS = ["kein interesse"]
+LOST_KEYWORDS = ["kein interesse", "abgebrochen"]
 
 # ── Farben (identisches Theme) ────────────────────────────────────────────────
 BG    = "#cbdafb"
