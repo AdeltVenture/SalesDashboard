@@ -278,12 +278,12 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
         owner_rows = ""
         if "Zuständig" in ph.columns:
             owner_counts = ph["Zuständig"].value_counts()
-            for owner, cnt in owner_counts.head(5).items():
-                safe_owner = str(owner).strip()[:12]  # Max 12 Zeichen
+            for owner, cnt in owner_counts.items():
+                safe_owner = str(owner).strip()[:8]  # Max 8 Zeichen + Initialen
                 owner_rows += (
-                    f'<div style="font-size:.68rem;color:{MUTED};line-height:1.4;flex-shrink:0;">'
-                    f'<span style="font-weight:600;color:{TEXT};">{safe_owner}</span>'
-                    f' <span style="color:{BLUE};font-weight:700;">{cnt}</span>'
+                    f'<div style="font-size:.66rem;color:{MUTED};line-height:1.3;flex-shrink:0;display:flex;justify-content:space-between;gap:.3rem;">'
+                    f'<span style="font-weight:500;color:{TEXT};white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">{safe_owner}</span>'
+                    f'<span style="color:{BLUE};font-weight:700;flex-shrink:0;">{cnt}</span>'
                     f'</div>'
                 )
 
@@ -296,7 +296,7 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
                 f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
-                f'display:flex;flex-direction:column;min-height:380px;">'
+                f'display:flex;flex-direction:column;height:420px;overflow:hidden;">'
                 f'<div style="color:{BLUE};font-size:.68rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:.08em;line-height:1.35;height:1.8rem;overflow:hidden;'
                 f'margin-bottom:.4rem;flex-shrink:0;">{phase}</div>'
@@ -310,9 +310,9 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                 f'<div style="color:{BLUE};font-size:.88rem;font-weight:700;flex-shrink:0;">{fmt_eur(val)}</div>'
                 f'{no_val_hint}'
                 f'<div style="border-top:1px solid {BDR};margin-top:.5rem;padding-top:.35rem;'
-                f'display:flex;flex-direction:column;">{wv_rows}</div>'
+                f'display:flex;flex-direction:column;flex-shrink:0;">{wv_rows}</div>'
                 f'<div style="border-top:1px solid {BDR};margin-top:.35rem;padding-top:.35rem;'
-                f'display:flex;flex-direction:column;">{owner_rows}</div>'
+                f'display:flex;flex-direction:column;flex:1;overflow-y:auto;">{owner_rows}</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
@@ -321,7 +321,7 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
 
 # ── Sales Funnel ──────────────────────────────────────────────────────────────
 st.markdown(f'<h2 style="color:{BLUE};font-size:1.3rem;font-weight:800;margin:.8rem 0 .5rem;border-bottom:2px solid {BDR};padding-bottom:.4rem;">I. Aktueller Sales-Funnel</h2>', unsafe_allow_html=True)
-_render_phase_cards(act_sales, PHASE_ORDER_SALES, "")
+_ = _render_phase_cards(act_sales, PHASE_ORDER_SALES, "")
 
 # Top-Chancen unter Sales
 if "Potenzieller Wert" in act_sales.columns:
@@ -348,7 +348,7 @@ if "Potenzieller Wert" in act_sales.columns:
 
 # ── After Sales ───────────────────────────────────────────────────────────────
 st.markdown(f'<h2 style="color:{BLUE};font-size:1.3rem;font-weight:800;margin:1.2rem 0 .5rem;border-bottom:2px solid {BDR};padding-bottom:.4rem;">II. After Sales</h2>', unsafe_allow_html=True)
-_render_phase_cards(act[act["Phase"].isin(PHASE_ORDER_AFTER)] if "Phase" in act.columns else act.iloc[0:0], PHASE_ORDER_AFTER, "")
+_ = _render_phase_cards(act[act["Phase"].isin(PHASE_ORDER_AFTER)] if "Phase" in act.columns else act.iloc[0:0], PHASE_ORDER_AFTER, "")
 
 # One-Pager: alles nach hier verstecken
 st.markdown(f'<div style="color:{MUTED};font-size:.6rem;text-align:center;margin:1.5rem 0;padding-top:1rem;border-top:2px solid {BDR};">SALES DASHBOARD | One-Pager für den Druck optimiert</div>', unsafe_allow_html=True)
