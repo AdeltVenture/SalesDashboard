@@ -8,10 +8,14 @@ from datetime import date
 st.set_page_config(page_title="LOYAGO · Sales Cockpit", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
 LOST_KEYWORDS = ["kein interesse", "verloren", "abgeschlossen", "closed lost", "closed won", "gewonnen", "won", "lost", "provisionskontrolle"]
-PHASE_ORDER = [
-    "Termin offen", "Termin vereinbart", "Beratung läuft",
-    "Angebot raus", "Antrag raus", "Nachbearbeitung", "Policiert", "After Sales",
+PHASE_ORDER_SALES = [
+    "Termin vereinbart", "Beratung läuft", "Angebot raus",
+    "Antrag raus", "Nachbearbeitung",
 ]
+PHASE_ORDER_AFTER = [
+    "Policiert", "After Sales",
+]
+PHASE_ORDER = PHASE_ORDER_SALES + PHASE_ORDER_AFTER
 
 # ── Farben (helles LOYAGO-Theme) ─────────────────────────────────────────────
 BG      = "#cbdafb"
@@ -202,7 +206,9 @@ act = df[~df["Ist_Verloren"]].copy()
 if act.empty:
     st.warning("Keine aktiven Leads."); st.stop()
 
-pip_val   = act["Potenzieller Wert"].sum() if "Potenzieller Wert" in act.columns else 0
+# Sales vs. After Sales Split
+act_sales = act[act["Phase"].isin(PHASE_ORDER_SALES)] if "Phase" in act.columns else act.iloc[0:0]
+pip_val   = act_sales["Potenzieller Wert"].sum() if "Potenzieller Wert" in act_sales.columns else 0
 n_overdue = int(act["Flag_WV_Ueberfaellig"].sum())
 n_no_wv   = int(act["Flag_Keine_WV"].sum())
 n_no_val  = int(act["Flag_Kein_Wert"].sum())
@@ -218,51 +224,37 @@ k3.metric("Heute fällig",       n_today)
 k4.metric("Überfällige WV",     n_overdue)
 k5.metric("Ohne Wiedervorlage", n_no_wv)
 
-# ── Phase Cards ───────────────────────────────────────────────────────────────
-sep("Pipeline nach Phase")
+# ── Helper: Phase Cards rendert ─────────────────────────────────────────────
+def _render_phase_cards(data, phase_order, title_prefix=""):
+    if data.empty or not phase_order:
+        return False
 
-WV_ORDER  = ["Keine WV", "Überfällig", "≤ 3 Tage", "≤ 5 Tage", "Später"]
-WV_COLORS = {
-    "Überfällig": "#dc2626",
-    "Keine WV":   "#f97316",
-    "≤ 3 Tage":  "#eab308",
-    "≤ 5 Tage":  "#06b6d4",
-    "Später":     "#64748b",
-}
+    WV_ORDER  = ["Keine WV", "Überfällig", "≤ 3 Tage", "≤ 5 Tage", "Später"]
+    WV_COLORS = {
+        "Überfällig": "#dc2626",
+        "Keine WV":   "#f97316",
+        "≤ 3 Tage":  "#eab308",
+        "≤ 5 Tage":  "#06b6d4",
+        "Später":     "#64748b",
+    }
 
-# Phasen sortieren: lookup-dict, case-insensitiv + trim
-_PHASE_RANK = {ref.strip().lower(): i for i, ref in enumerate(PHASE_ORDER)}
-_raw_phases = sorted(
-    act["Phase"].dropna().unique().tolist() if "Phase" in act.columns else [],
-    key=lambda p: _PHASE_RANK.get(str(p).strip().lower(), 999)
-)
+    _PHASE_RANK = {ref.strip().lower(): i for i, ref in enumerate(phase_order)}
+    _raw_phases = sorted(
+        [p for p in data["Phase"].dropna().unique().tolist() if p in phase_order] if "Phase" in data.columns else [],
+        key=lambda p: _PHASE_RANK.get(str(p).strip().lower(), 999)
+    )
 
-# Manuelle Reihenfolge per Session-State (Sidebar-Buttons)
-if "phase_order" not in st.session_state or set(st.session_state.phase_order) != set(_raw_phases):
-    st.session_state.phase_order = _raw_phases
+    if not _raw_phases:
+        return False
 
-with st.sidebar:
-    st.markdown(f'<p style="color:{MUTED};font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-top:1rem;">Phasen-Reihenfolge</p>', unsafe_allow_html=True)
-    order = st.session_state.phase_order
-    for idx, ph_name in enumerate(order):
-        c1, c2, c3 = st.columns([4, 1, 1])
-        c1.markdown(f'<div style="font-size:.75rem;padding-top:4px;color:{TEXT};">{ph_name}</div>', unsafe_allow_html=True)
-        if idx > 0 and c2.button("↑", key=f"up_{idx}", help="Nach oben"):
-            order[idx], order[idx-1] = order[idx-1], order[idx]
-            st.rerun()
-        if idx < len(order)-1 and c3.button("↓", key=f"dn_{idx}", help="Nach unten"):
-            order[idx], order[idx+1] = order[idx+1], order[idx]
-            st.rerun()
+    sep(title_prefix) if title_prefix else None
+    pcols = st.columns(len(_raw_phases))
 
-phases_in = st.session_state.phase_order
-
-if phases_in:
-    pcols = st.columns(len(phases_in))
-    for i, phase in enumerate(phases_in):
-        ph    = act[act["Phase"] == phase] if "Phase" in act.columns else act.iloc[0:0]
+    for i, phase in enumerate(_raw_phases):
+        ph    = data[data["Phase"] == phase] if "Phase" in data.columns else data.iloc[0:0]
         n     = len(ph)
         val   = ph["Potenzieller Wert"].sum() if "Potenzieller Wert" in ph.columns else 0
-        pct   = round(n / total * 100) if total else 0
+        pct   = round(n / len(data) * 100) if len(data) else 0
 
         n_no_val_ph = int(ph["Flag_Kein_Wert"].sum()) if "Flag_Kein_Wert" in ph.columns else 0
         wv_counts = ph["WV_Bucket"].value_counts() if "WV_Bucket" in ph.columns else pd.Series(dtype=int)
@@ -292,11 +284,9 @@ if phases_in:
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
                 f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
                 f'display:flex;flex-direction:column;">'
-                # Phase-Name
                 f'<div style="color:{BLUE};font-size:.68rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:.08em;line-height:1.35;height:1.8rem;overflow:hidden;'
                 f'margin-bottom:.4rem;flex-shrink:0;">{phase}</div>'
-                # Zahl + Badge
                 f'<div style="display:flex;align-items:center;gap:.4rem;'
                 f'margin-bottom:.1rem;flex-shrink:0;">'
                 f'<span style="color:{TEXT};font-size:2rem;font-weight:800;line-height:1;">{n}</span>'
@@ -312,9 +302,15 @@ if phases_in:
                 unsafe_allow_html=True
             )
 
+    return True
+
+# ── Phase Cards ───────────────────────────────────────────────────────────────
+_render_phase_cards(act_sales, PHASE_ORDER_SALES, "Sales Pipeline")
+_render_phase_cards(act[act["Phase"].isin(PHASE_ORDER_AFTER)] if "Phase" in act.columns else act.iloc[0:0], PHASE_ORDER_AFTER, "After Sales")
+
 # ── Top-Chancen (Seite 1, direkt nach Phase-Cards) ───────────────────────────
-if "Potenzieller Wert" in act.columns:
-    top = act[act["Potenzieller Wert"] > 0].sort_values("Potenzieller Wert", ascending=False).head(10)
+if "Potenzieller Wert" in act_sales.columns:
+    top = act_sales[act_sales["Potenzieller Wert"] > 0].sort_values("Potenzieller Wert", ascending=False).head(10)
     if not top.empty:
         sep("Top-Chancen")
         TCOLS = ["Vorgang #","Titel","Typ","Phase","Zuständig","Kontakte","Potenzieller Wert"]
