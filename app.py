@@ -274,6 +274,21 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                 f'</div>'
             )
 
+        # Zuständige-Übersicht
+        owner_rows = ""
+        if "Zuständig" in ph.columns:
+            owner_counts = ph["Zuständig"].value_counts()
+            for owner, cnt in owner_counts.head(5).items():
+                owner_pct = round(cnt / n * 100) if n else 0
+                owner_rows += (
+                    f'<div style="display:flex;align-items:center;gap:5px;height:1.6rem;">'
+                    f'<span style="color:{MUTED};font-size:.72rem;flex-shrink:0;white-space:nowrap;max-width:52px;overflow:hidden;text-overflow:ellipsis;" title="{owner}">{owner}</span>'
+                    f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
+                    f'<div style="background:{BLUE};width:{owner_pct}%;height:3px;border-radius:3px;"></div></div>'
+                    f'<span style="color:{BLUE};font-weight:700;font-size:.76rem;width:22px;text-align:right;">{cnt}</span>'
+                    f'</div>'
+                )
+
         no_val_hint = ""
         if n_no_val_ph:
             no_val_hint = (f'<div style="color:{MUTED};font-size:.68rem;margin-top:.15rem;'
@@ -298,6 +313,8 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                 f'{no_val_hint}'
                 f'<div style="border-top:1px solid {BDR};margin-top:.5rem;padding-top:.35rem;'
                 f'display:flex;flex-direction:column;">{wv_rows}</div>'
+                f'<div style="border-top:1px solid {BDR};margin-top:.35rem;padding-top:.35rem;'
+                f'display:flex;flex-direction:column;">{owner_rows}</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
