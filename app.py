@@ -46,7 +46,7 @@ div[data-testid="stVerticalBlock"]>div{{gap:.5rem!important;}}
 hr{{border-color:{BDR}!important;}}
 p,span,div,label{{color:{TEXT};}}
 [data-testid="stDataFrame"]{{border-radius:10px;}}
-@page{{margin:5mm 6mm;}}
+@page{{margin:3mm 4mm;}}
 @media print{{
   section[data-testid="stSidebar"],
   [data-testid="stHeader"],
@@ -56,10 +56,10 @@ p,span,div,label{{color:{TEXT};}}
   iframe{{display:none!important;}}
   [data-testid="block-container"]{{padding:0!important;margin:0!important;max-width:100%!important;}}
   [data-testid="stVerticalBlock"]>div{{gap:0!important;margin-bottom:0!important;padding-bottom:0!important;}}
-  [data-testid="stHorizontalBlock"]{{gap:4px!important;}}
-  [data-testid="metric-container"]{{padding:.35rem .6rem!important;border-radius:8px!important;}}
-  [data-testid="metric-container"] [data-testid="stMetricValue"]{{font-size:1.3rem!important;}}
-  [data-testid="metric-container"] label{{font-size:.6rem!important;}}
+  [data-testid="stHorizontalBlock"]{{gap:2px!important;}}
+  [data-testid="metric-container"]{{padding:.25rem .4rem!important;border-radius:6px!important;margin:0!important;}}
+  [data-testid="metric-container"] [data-testid="stMetricValue"]{{font-size:1.1rem!important;}}
+  [data-testid="metric-container"] label{{font-size:.55rem!important;}}
   div[data-testid="stVerticalBlockBorderWrapper"]{{padding:0!important;}}
   .element-container,.stMarkdown{{margin:0!important;padding:0!important;}}
 }}
@@ -274,18 +274,16 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                 f'</div>'
             )
 
-        # Zuständige-Übersicht
+        # Zuständige-Übersicht (kompakt, ohne Balken)
         owner_rows = ""
         if "Zuständig" in ph.columns:
             owner_counts = ph["Zuständig"].value_counts()
             for owner, cnt in owner_counts.head(5).items():
-                owner_pct = round(cnt / n * 100) if n else 0
+                safe_owner = str(owner).strip()[:12]  # Max 12 Zeichen
                 owner_rows += (
-                    f'<div style="display:flex;align-items:center;gap:5px;height:1.6rem;">'
-                    f'<span style="color:{MUTED};font-size:.72rem;flex-shrink:0;white-space:nowrap;max-width:52px;overflow:hidden;text-overflow:ellipsis;" title="{owner}">{owner}</span>'
-                    f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
-                    f'<div style="background:{BLUE};width:{owner_pct}%;height:3px;border-radius:3px;"></div></div>'
-                    f'<span style="color:{BLUE};font-weight:700;font-size:.76rem;width:22px;text-align:right;">{cnt}</span>'
+                    f'<div style="font-size:.68rem;color:{MUTED};line-height:1.4;flex-shrink:0;">'
+                    f'<span style="font-weight:600;color:{TEXT};">{safe_owner}</span>'
+                    f' <span style="color:{BLUE};font-weight:700;">{cnt}</span>'
                     f'</div>'
                 )
 
@@ -298,7 +296,7 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
                 f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
-                f'display:flex;flex-direction:column;">'
+                f'display:flex;flex-direction:column;min-height:380px;">'
                 f'<div style="color:{BLUE};font-size:.68rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:.08em;line-height:1.35;height:1.8rem;overflow:hidden;'
                 f'margin-bottom:.4rem;flex-shrink:0;">{phase}</div>'
@@ -352,101 +350,5 @@ if "Potenzieller Wert" in act_sales.columns:
 st.markdown(f'<h2 style="color:{BLUE};font-size:1.3rem;font-weight:800;margin:1.2rem 0 .5rem;border-bottom:2px solid {BDR};padding-bottom:.4rem;">II. After Sales</h2>', unsafe_allow_html=True)
 _render_phase_cards(act[act["Phase"].isin(PHASE_ORDER_AFTER)] if "Phase" in act.columns else act.iloc[0:0], PHASE_ORDER_AFTER, "")
 
-# Marker: alles ab hier wird beim Drucken ausgeblendet
-st.markdown('<span id="page2-marker" style="display:none;"></span>', unsafe_allow_html=True)
-
-# JS: Seite-2-Inhalte vor dem Drucken verstecken (kein Button, läuft via Ctrl+P)
-components.html("""<script>
-(function(){
-  var w = window.parent, d = w.document;
-  if (!w._loyPrint) {
-    w._loyPrint = true;
-    w.addEventListener('beforeprint', function(){
-      var m = d.getElementById('page2-marker');
-      if (!m) return;
-      var vb = m.closest('[data-testid="stVerticalBlock"]');
-      if (!vb) return;
-      var row = m;
-      while (row.parentElement !== vb) row = row.parentElement;
-      w._p2 = [];
-      var el = row;
-      while (el) { el.style.setProperty('display','none','important'); w._p2.push(el); el = el.nextElementSibling; }
-    });
-    w.addEventListener('afterprint', function(){
-      if (w._p2) { w._p2.forEach(function(el){ el.style.removeProperty('display'); }); w._p2 = null; }
-    });
-  }
-})();
-</script>""", height=1)
-
-# ── WV-Analyse je Phase ───────────────────────────────────────────────────────
-sep("Wiedervorlage-Status je Phase")
-
-if "Phase" in act.columns and "WV_Bucket" in act.columns:
-    wv_data = act.groupby(["Phase","WV_Bucket"]).size().reset_index(name="Anzahl")
-    wv_data["_o"] = wv_data["Phase"].apply(_phase_key)
-    wv_data = wv_data.sort_values("_o").drop("_o", axis=1)
-    fig_wv = px.bar(wv_data, x="Phase", y="Anzahl", color="WV_Bucket", barmode="stack",
-                    color_discrete_map=WV_COLORS, category_orders={"WV_Bucket": WV_ORDER})
-    fig_wv.update_layout(title=dict(text="Wiedervorlage-Fälligkeit je Phase", font=dict(size=13,color=MUTED)),
-                         bargap=0.3, **pc(360))
-    st.plotly_chart(fig_wv, use_container_width=True)
-
-# ── Nach Mitarbeiter ──────────────────────────────────────────────────────────
-if "Zuständig" in act.columns:
-    sep("Pipeline nach Mitarbeiter")
-    op = act.groupby(["Zuständig","Phase"]).agg(Leads=(count_col,"count"), Wert=("Potenzieller Wert","sum")).reset_index()
-    mc1, mc2 = st.columns(2)
-    with mc1:
-        f1 = px.bar(op, x="Zuständig", y="Leads", color="Phase", barmode="stack",
-                    color_discrete_sequence=["#1d4ed8","#2563eb","#3b82f6","#60a5fa","#93c5fd","#bfdbfe","#dbeafe","#eff6ff"])
-        f1.update_layout(title=dict(text="Leads pro Mitarbeiter", font=dict(size=13,color=MUTED)), bargap=0.3, **pc(360))
-        st.plotly_chart(f1, use_container_width=True)
-    with mc2:
-        f2 = px.bar(op, x="Zuständig", y="Wert", color="Phase", barmode="stack",
-                    color_discrete_sequence=["#1d4ed8","#2563eb","#3b82f6","#60a5fa","#93c5fd","#bfdbfe","#dbeafe","#eff6ff"])
-        f2.update_layout(title=dict(text="Wert pro Mitarbeiter", font=dict(size=13,color=MUTED)), bargap=0.3, **pc(360))
-        st.plotly_chart(f2, use_container_width=True)
-
-# ── Tages-Fokus ───────────────────────────────────────────────────────────────
-sep("Tages-Fokus")
-ec1, ec2 = st.columns(2)
-with ec1:
-    ov = act[act["Flag_WV_Ueberfaellig"]]
-    with st.expander(f"⏰  Überfällige Wiedervorlagen  ({len(ov)})", expanded=len(ov)>0):
-        if not ov.empty: lead_table(ov, "earliest_todo_due_at")
-        else: st.markdown(f'<p style="color:{GREEN};">✓ Keine überfälligen WV</p>', unsafe_allow_html=True)
-    no_wv = act[act["Flag_Keine_WV"]]
-    with st.expander(f"○  Ohne Wiedervorlage  ({len(no_wv)})", expanded=False):
-        if not no_wv.empty: lead_table(no_wv)
-        else: st.markdown(f'<p style="color:{GREEN};">✓ Alle Leads haben WV</p>', unsafe_allow_html=True)
-with ec2:
-    td = act[act["Flag_WV_Heute"]]
-    with st.expander(f"📅  Heute fällig  ({len(td)})", expanded=len(td)>0):
-        if not td.empty: lead_table(td, "Potenzieller Wert")
-        else: st.markdown(f'<p style="color:{MUTED};">Keine WV für heute</p>', unsafe_allow_html=True)
-    no_val = act[act["Flag_Kein_Wert"]]
-    with st.expander(f"€  Ohne Wert  ({len(no_val)})", expanded=False):
-        if not no_val.empty: lead_table(no_val)
-        else: st.markdown(f'<p style="color:{GREEN};">✓ Alle Leads haben Wert</p>', unsafe_allow_html=True)
-
-# ── Alle Leads ────────────────────────────────────────────────────────────────
-sep("Alle aktiven Leads")
-f1,f2,f3,f4 = st.columns(4)
-sp  = f1.selectbox("Phase",     ["Alle"]+sorted(act["Phase"].dropna().unique().tolist()))     if "Phase"     in act.columns else f1.selectbox("Phase",    ["Alle"])
-st_ = f2.selectbox("Typ",       ["Alle"]+sorted(act["Typ"].dropna().unique().tolist()))       if "Typ"       in act.columns else f2.selectbox("Typ",      ["Alle"])
-so  = f3.selectbox("Zuständig", ["Alle"]+sorted(act["Zuständig"].dropna().unique().tolist())) if "Zuständig" in act.columns else f3.selectbox("Zuständig",["Alle"])
-sf  = f4.multiselect("Filter",  ["Ohne WV","Ohne Wert","WV überfällig",f"Alter ≥ {warn_days} T."])
-
-filt = act.copy()
-if sp  != "Alle": filt = filt[filt["Phase"]     == sp]
-if st_ != "Alle" and "Typ"       in filt.columns: filt = filt[filt["Typ"]       == st_]
-if so  != "Alle" and "Zuständig" in filt.columns: filt = filt[filt["Zuständig"] == so]
-if "Ohne WV"       in sf: filt = filt[filt["Flag_Keine_WV"]]
-if "Ohne Wert"     in sf: filt = filt[filt["Flag_Kein_Wert"]]
-if "WV überfällig" in sf: filt = filt[filt["Flag_WV_Ueberfaellig"]]
-if f"Alter ≥ {warn_days} T." in sf and "Alter_Tage" in filt.columns:
-    filt = filt[filt["Alter_Tage"] >= warn_days]
-
-st.markdown(f'<p style="color:{MUTED};font-size:.75rem;">{len(filt)} von {len(act)} aktiven Leads</p>', unsafe_allow_html=True)
-lead_table(filt)
+# One-Pager: alles nach hier verstecken
+st.markdown(f'<div style="color:{MUTED};font-size:.6rem;text-align:center;margin:1.5rem 0;padding-top:1rem;border-top:2px solid {BDR};">SALES DASHBOARD | One-Pager für den Druck optimiert</div>', unsafe_allow_html=True)
