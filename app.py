@@ -274,15 +274,16 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                 f'</div>'
             )
 
-        # Zuständige-Übersicht (kompakt, ohne Balken)
+        # Zuständige-Übersicht (kompakt, ohne Balken) — Summe = n (inkl. "Ohne")
         owner_rows = ""
         if "Zuständig" in ph.columns:
-            owner_counts = ph["Zuständig"].value_counts()
+            owner_counts = ph["Zuständig"].value_counts(dropna=False)
             for owner, cnt in owner_counts.items():
-                safe_owner = str(owner).strip()[:8]  # Max 8 Zeichen + Initialen
+                name = "Ohne Zuständ." if (pd.isna(owner) or str(owner).strip() in ("", "nan")) else str(owner).strip()
                 owner_rows += (
-                    f'<div style="font-size:.66rem;color:{MUTED};line-height:1.3;flex-shrink:0;display:flex;justify-content:space-between;gap:.3rem;">'
-                    f'<span style="font-weight:500;color:{TEXT};white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">{safe_owner}</span>'
+                    f'<div style="font-size:.68rem;line-height:1.25;display:flex;'
+                    f'justify-content:space-between;gap:.4rem;align-items:baseline;margin-bottom:2px;">'
+                    f'<span style="font-weight:500;color:{TEXT};word-break:break-word;">{name}</span>'
                     f'<span style="color:{BLUE};font-weight:700;flex-shrink:0;">{cnt}</span>'
                     f'</div>'
                 )
