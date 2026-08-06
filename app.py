@@ -304,15 +304,15 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
 
     return True
 
-# ── Phase Cards ───────────────────────────────────────────────────────────────
-_render_phase_cards(act_sales, PHASE_ORDER_SALES, "Sales Pipeline")
-_render_phase_cards(act[act["Phase"].isin(PHASE_ORDER_AFTER)] if "Phase" in act.columns else act.iloc[0:0], PHASE_ORDER_AFTER, "After Sales")
+# ── Sales Funnel ──────────────────────────────────────────────────────────────
+st.markdown(f'<h2 style="color:{BLUE};font-size:1.3rem;font-weight:800;margin:.8rem 0 .5rem;border-bottom:2px solid {BDR};padding-bottom:.4rem;">I. Aktueller Sales-Funnel</h2>', unsafe_allow_html=True)
+_render_phase_cards(act_sales, PHASE_ORDER_SALES, "")
 
-# ── Top-Chancen (Seite 1, direkt nach Phase-Cards) ───────────────────────────
+# Top-Chancen unter Sales
 if "Potenzieller Wert" in act_sales.columns:
     top = act_sales[act_sales["Potenzieller Wert"] > 0].sort_values("Potenzieller Wert", ascending=False).head(10)
     if not top.empty:
-        sep("Top-Chancen")
+        st.markdown(f'<div style="color:{MUTED};font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin:1rem 0 .4rem;padding-bottom:.3rem;border-bottom:1px solid {BDR};">Top-Chancen</div>', unsafe_allow_html=True)
         TCOLS = ["Vorgang #","Titel","Typ","Phase","Zuständig","Kontakte","Potenzieller Wert"]
         tcols = [c for c in TCOLS if c in top.columns]
         hdr = "".join(f'<th style="padding:5px 8px;text-align:left;font-size:.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid {BDR};white-space:nowrap;">{c}</th>' for c in tcols)
@@ -330,6 +330,10 @@ if "Potenzieller Wert" in act_sales.columns:
             f'<table style="width:100%;border-collapse:collapse;"><thead><tr>{hdr}</tr></thead>'
             f'<tbody>{rows_html}</tbody></table></div>',
             unsafe_allow_html=True)
+
+# ── After Sales ───────────────────────────────────────────────────────────────
+st.markdown(f'<h2 style="color:{BLUE};font-size:1.3rem;font-weight:800;margin:1.2rem 0 .5rem;border-bottom:2px solid {BDR};padding-bottom:.4rem;">II. After Sales</h2>', unsafe_allow_html=True)
+_render_phase_cards(act[act["Phase"].isin(PHASE_ORDER_AFTER)] if "Phase" in act.columns else act.iloc[0:0], PHASE_ORDER_AFTER, "")
 
 # Marker: alles ab hier wird beim Drucken ausgeblendet
 st.markdown('<span id="page2-marker" style="display:none;"></span>', unsafe_allow_html=True)
@@ -357,34 +361,6 @@ components.html("""<script>
   }
 })();
 </script>""", height=1)
-
-# ── Phasen-Verteilung (visuell) ───────────────────────────────────────────────
-sep("Wo stecken die meisten Leads?")
-
-if "Phase" in act.columns and len(phases_in):
-    phase_stats = (act.groupby("Phase")
-        .agg(Leads=(count_col,"count"), Wert=("Potenzieller Wert","sum"))
-        .reset_index())
-    phase_stats["_o"]  = phase_stats["Phase"].apply(_phase_key)
-    phase_stats = phase_stats.sort_values("_o").drop("_o", axis=1)
-    phase_stats["Pct"] = (phase_stats["Leads"] / total * 100).round(1)
-    max_leads = phase_stats["Leads"].max()
-
-    for _, row in phase_stats.iterrows():
-        bar_w  = int(row["Leads"] / max_leads * 100)
-        is_max = row["Leads"] == max_leads
-        bar_col = BLUE if is_max else f"rgba(37,99,235,0.35)"
-        pct_col = BLUE if is_max else MUTED
-        st.markdown(f"""<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.6rem;">
-  <div style="width:130px;text-align:right;color:{TEXT};font-size:.8rem;font-weight:{'700' if is_max else '400'};white-space:nowrap;">{row['Phase']}</div>
-  <div style="flex:1;background:{BG};border-radius:6px;height:28px;overflow:hidden;border:1px solid {BDR};">
-    <div style="background:{bar_col};width:{bar_w}%;height:28px;border-radius:5px;display:flex;align-items:center;padding-left:.6rem;">
-      <span style="color:{'white' if is_max else TEXT};font-size:.75rem;font-weight:700;">{int(row['Leads'])} Leads</span>
-    </div>
-  </div>
-  <div style="width:55px;text-align:right;color:{pct_col};font-size:{'1.1rem' if is_max else '.85rem'};font-weight:{'800' if is_max else '500'};">{row['Pct']}%</div>
-  <div style="width:80px;text-align:right;color:{MUTED};font-size:.75rem;">{fmt_eur(row['Wert'])}</div>
-</div>""", unsafe_allow_html=True)
 
 # ── WV-Analyse je Phase ───────────────────────────────────────────────────────
 sep("Wiedervorlage-Status je Phase")
