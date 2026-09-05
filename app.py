@@ -138,6 +138,9 @@ def load_csv(raw_bytes):
     # Phasennamen trimmen damit Leerzeichen in der CSV kein Problem machen
     if "Phase" in df.columns:
         df["Phase"] = df["Phase"].astype(str).str.strip()
+        # Bekannte Schreibvarianten aus dem CRM auf Standard mappen
+        PHASE_ALIASES = {"nachberabeitung": "Nachbearbeitung"}
+        df["Phase"] = df["Phase"].apply(lambda p: PHASE_ALIASES.get(str(p).strip().lower(), p))
     # Spaltennamen normalisieren für robuste Erkennung
     col_map = {c.lower().strip(): c for c in df.columns}
     for col in ("Erstellt","Wiedervorlage","earliest_todo_due_at","due_at","Frist"):
@@ -274,6 +277,36 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                 f'</div>'
             )
 
+        # Alters-Statistik des Funnelschritts (basierend auf "Erstellt")
+        ages = ph["Alter_Tage"].dropna() if "Alter_Tage" in ph.columns else pd.Series(dtype=float)
+        avg_age = int(round(ages.mean())) if len(ages) else 0
+        AGE_DEFS = [
+            ("< 10 T",  (ages < 10),                "#16a34a"),
+            ("10–20 T", (ages >= 10) & (ages < 20), "#06b6d4"),
+            ("20–30 T", (ages >= 20) & (ages < 30), "#eab308"),
+            ("> 30 T",  (ages >= 30),               "#dc2626"),
+        ]
+        age_rows = ""
+        for label, mask, c in AGE_DEFS:
+            cnt     = int(mask.sum()) if len(ages) else 0
+            bar_w   = round(cnt / n * 100) if n and cnt else 0
+            cnt_col = c if cnt else "rgba(100,116,139,.28)"
+            bar_col = c if cnt else "rgba(203,218,251,.35)"
+            age_rows += (
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.5rem;">'
+                f'<span style="color:{MUTED};font-size:.72rem;width:58px;flex-shrink:0;white-space:nowrap;">{label}</span>'
+                f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
+                f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
+                f'<span style="color:{cnt_col};font-weight:700;font-size:.76rem;width:22px;text-align:right;">{cnt}</span>'
+                f'</div>'
+            )
+        age_head = (
+            f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.15rem;">'
+            f'<span style="color:{MUTED};font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Ø Alter</span>'
+            f'<span style="color:{TEXT};font-size:.9rem;font-weight:800;">{avg_age} <span style="font-size:.66rem;font-weight:600;color:{MUTED};">Tage</span></span>'
+            f'</div>'
+        )
+
         # Zuständige-Übersicht (kompakt, ohne Balken) — Summe = n (inkl. "Ohne")
         owner_rows = ""
         if "Zuständig" in ph.columns:
@@ -297,7 +330,7 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
                 f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
-                f'display:flex;flex-direction:column;height:420px;overflow:hidden;">'
+                f'display:flex;flex-direction:column;height:500px;overflow:hidden;">'
                 f'<div style="color:{BLUE};font-size:.68rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:.08em;line-height:1.35;height:1.8rem;overflow:hidden;'
                 f'margin-bottom:.4rem;flex-shrink:0;">{phase}</div>'
@@ -311,6 +344,8 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                 f'<div style="color:{BLUE};font-size:.88rem;font-weight:700;flex-shrink:0;">{fmt_eur(val)}</div>'
                 f'{no_val_hint}'
                 f'<div style="border-top:1px solid {BDR};margin-top:.5rem;padding-top:.35rem;'
+                f'display:flex;flex-direction:column;flex-shrink:0;">{age_head}{age_rows}</div>'
+                f'<div style="border-top:1px solid {BDR};margin-top:.35rem;padding-top:.35rem;'
                 f'display:flex;flex-direction:column;flex-shrink:0;">{wv_rows}</div>'
                 f'<div style="border-top:1px solid {BDR};margin-top:.35rem;padding-top:.35rem;'
                 f'display:flex;flex-direction:column;flex:1;overflow-y:auto;">{owner_rows}</div>'
