@@ -270,7 +270,7 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
             cnt_col = c if cnt else "rgba(100,116,139,.28)"
             bar_col = c if cnt else "rgba(203,218,251,.35)"
             wv_rows += (
-                f'<div style="display:flex;align-items:center;gap:5px;height:1.6rem;">'
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.4rem;">'
                 f'<span style="color:{MUTED};font-size:.72rem;width:58px;flex-shrink:0;white-space:nowrap;">{bucket}</span>'
                 f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
                 f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
@@ -294,7 +294,7 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
             cnt_col = c if cnt else "rgba(100,116,139,.28)"
             bar_col = c if cnt else "rgba(203,218,251,.35)"
             age_rows += (
-                f'<div style="display:flex;align-items:center;gap:5px;height:1.6rem;">'
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.4rem;">'
                 f'<span style="color:{MUTED};font-size:.72rem;width:62px;flex-shrink:0;white-space:nowrap;">{label}</span>'
                 f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
                 f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
@@ -331,7 +331,7 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
             st.markdown(
                 f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
                 f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
-                f'display:flex;flex-direction:column;height:500px;overflow:hidden;">'
+                f'display:flex;flex-direction:column;height:560px;overflow:hidden;">'
                 f'<div style="color:{BLUE};font-size:.68rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:.08em;line-height:1.35;height:1.8rem;overflow:hidden;'
                 f'margin-bottom:.4rem;flex-shrink:0;">{phase}</div>'
