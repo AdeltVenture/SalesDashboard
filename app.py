@@ -1,458 +1,390 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import date
 
-st.set_page_config(
-    page_title="Sales Pipeline",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="LOYAGO · Sales Cockpit", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
-# ── Config ────────────────────────────────────────────────────────────────────
-
-LOST_KEYWORDS = [
-    "kein interesse", "verloren", "abgeschlossen", "closed lost",
-    "closed won", "gewonnen", "won", "lost",
+LOST_KEYWORDS = ["kein interesse", "verloren", "abgeschlossen", "closed lost", "closed won", "gewonnen", "won", "lost", "provisionskontrolle"]
+PHASE_ORDER_SALES = [
+    "Termin vereinbart", "Beratung läuft", "Angebot raus",
+    "Antrag raus", "Nachbearbeitung",
 ]
-
-# Preferred display order for Phase inside the funnel
-PHASE_ORDER = [
-    "Termin offen",
-    "Termin vereinbart",
-    "Angebot raus",
-    "Angebot angenommen",
-    "Vertrag in Prüfung",
-    "Abschluss",
+PHASE_ORDER_AFTER = [
+    "Policiert", "After Sales",
 ]
+PHASE_ORDER = PHASE_ORDER_SALES + PHASE_ORDER_AFTER
 
-# Preferred display order for Typ (Welcome Call before Beratung)
-TYP_ORDER = ["Welcome Call", "Beratung"]
+# ── Farben (helles LOYAGO-Theme) ─────────────────────────────────────────────
+BG      = "#cbdafb"
+CARD    = "#ffffff"
+CARD2   = "#eef3fd"
+BDR     = "rgba(37,99,235,0.18)"
+BLUE    = "#2563eb"
+LBLUE   = "#c8d8f8"
+TEXT    = "#1e293b"
+MUTED   = "#64748b"
+GREEN   = "#16a34a"
+YEL     = "#d97706"
+RED     = "#dc2626"
+ORA     = "#ea580c"
 
-AGE_BUCKETS = [
-    ("≤ 2 Wo. (frisch)",    0,  14, "#4CAF50"),
-    ("2–4 Wo. (normal)",   14,  28, "#FFC107"),
-    ("4–6 Wo. (kritisch)", 28,  42, "#FF9800"),
-    ("> 6 Wo. (überfällig)", 42, 9999, "#F44336"),
-]
-AGE_LABELS  = [b[0] for b in AGE_BUCKETS]
-AGE_COLORS  = {b[0]: b[3] for b in AGE_BUCKETS}
+st.markdown(f"""<style>
+[data-testid="stAppViewContainer"]{{background:{BG};}}
+[data-testid="stHeader"]{{background:transparent;}}
+[data-testid="block-container"]{{padding-top:1.2rem!important;padding-bottom:1rem!important;}}
+section[data-testid="stSidebar"]{{background:{CARD};border-right:1px solid {BDR};box-shadow:2px 0 12px rgba(37,99,235,.08);}}
+[data-testid="metric-container"]{{background:{CARD};border:1px solid {BDR};border-radius:12px;padding:.75rem 1rem;box-shadow:0 2px 8px rgba(37,99,235,.07);}}
+[data-testid="metric-container"] label{{color:{MUTED}!important;font-size:.68rem!important;text-transform:uppercase;letter-spacing:.08em;}}
+[data-testid="metric-container"] [data-testid="stMetricValue"]{{color:{TEXT}!important;font-size:1.7rem!important;font-weight:800;}}
+[data-testid="metric-container"] [data-testid="stMetricDelta"]{{display:none;}}
+div[data-testid="stVerticalBlock"]>div{{gap:.5rem!important;}}
+.stExpander{{background:{CARD}!important;border:1px solid {BDR}!important;border-radius:12px!important;box-shadow:0 2px 6px rgba(37,99,235,.06)!important;}}
+.stExpander summary{{color:{TEXT}!important;font-weight:600;}}
+hr{{border-color:{BDR}!important;}}
+p,span,div,label{{color:{TEXT};}}
+[data-testid="stDataFrame"]{{border-radius:10px;}}
+@page{{margin:3mm 4mm;}}
+@media print{{
+  section[data-testid="stSidebar"],
+  [data-testid="stHeader"],
+  [data-testid="stToolbar"],
+  [data-testid="stDecoration"],
+  [data-testid="stStatusWidget"],
+  iframe{{display:none!important;}}
+  [data-testid="block-container"]{{padding:0!important;margin:0!important;max-width:100%!important;}}
+  [data-testid="stVerticalBlock"]>div{{gap:0!important;margin-bottom:0!important;padding-bottom:0!important;}}
+  [data-testid="stHorizontalBlock"]{{gap:2px!important;}}
+  [data-testid="metric-container"]{{padding:.25rem .4rem!important;border-radius:6px!important;margin:0!important;}}
+  [data-testid="metric-container"] [data-testid="stMetricValue"]{{font-size:1.1rem!important;}}
+  [data-testid="metric-container"] label{{font-size:.55rem!important;}}
+  div[data-testid="stVerticalBlockBorderWrapper"]{{padding:0!important;}}
+  .element-container,.stMarkdown{{margin:0!important;padding:0!important;}}
+}}
+</style>""", unsafe_allow_html=True)
 
-
-# ── Data helpers ──────────────────────────────────────────────────────────────
-
+# ── helpers ───────────────────────────────────────────────────────────────────
 def _phase_key(p):
-    try:
-        return PHASE_ORDER.index(p)
-    except ValueError:
-        return len(PHASE_ORDER)
-
-
-def _typ_key(t):
-    try:
-        return TYP_ORDER.index(t)
-    except ValueError:
-        return len(TYP_ORDER)
-
-
-def _age_bucket(days):
-    if pd.isna(days):
-        return "Unbekannt"
-    for label, lo, hi, _ in AGE_BUCKETS:
-        if lo <= days < hi:
-            return label
-    return AGE_BUCKETS[-1][0]
-
+    p_norm = str(p).strip().lower()
+    for i, ref in enumerate(PHASE_ORDER):
+        if ref.strip().lower() == p_norm:
+            return i
+    return len(PHASE_ORDER)
 
 def _is_lost(phase):
-    if pd.isna(phase):
-        return False
+    if pd.isna(phase): return False
     return any(kw in str(phase).lower() for kw in LOST_KEYWORDS)
 
+def _parse_date_robust(series):
+    """Parst Datumsspalten – deutsches Format zuerst, dann ISO/UTC."""
+    for kw in [
+        dict(errors="coerce", format="%d.%m.%Y"),
+        dict(errors="coerce", format="%d.%m.%Y %H:%M"),
+        dict(errors="coerce", format="%d.%m.%Y %H:%M:%S"),
+        dict(utc=True, errors="coerce"),
+        dict(errors="coerce", dayfirst=True),
+    ]:
+        parsed = pd.to_datetime(series, **kw)
+        if parsed.notna().any():
+            if parsed.dt.tz is not None:
+                return parsed.dt.tz_convert(None)
+            return parsed
+    return pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
 
 def _parse_number(series):
-    """Handle both German (1.234,56) and international (1234.56) formats."""
     s = series.astype(str).str.strip()
-    # If comma appears after dot → international; if dot appears after comma → German
-    has_german = s.str.contains(r"\d\.\d{3},", regex=True).any()
-    if has_german:
+    if s.str.contains(r"\d\.\d{3},", regex=True).any():
         s = s.str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
     return pd.to_numeric(s, errors="coerce")
-
-
-@st.cache_data(show_spinner="Daten laden …")
-def load_csv(raw_bytes: bytes) -> pd.DataFrame:
-    import io
-    for enc in ("utf-8-sig", "utf-8", "latin-1", "cp1252"):
-        try:
-            df = pd.read_csv(io.BytesIO(raw_bytes), encoding=enc)
-            break
-        except Exception:
-            continue
-
-    df.columns = df.columns.str.strip()
-
-    # ── Date parsing
-    for col in ("Erstellt", "earliest_todo_due_at", "Frist"):
-        if col in df.columns:
-            df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce")
-
-    # ── Numeric
-    for col in ("Potenzieller Wert", "Provision", "attr_case_potential_value"):
-        if col in df.columns:
-            df[col] = _parse_number(df[col]).fillna(0)
-    if "Aufgaben" in df.columns:
-        df["Aufgaben"] = pd.to_numeric(df["Aufgaben"], errors="coerce").fillna(0)
-
-    today = pd.Timestamp(date.today())
-
-    # ── Derived
-    df["Alter_Tage"]    = (today - df.get("Erstellt", pd.NaT)).dt.days
-    df["Alter_Bucket"]  = df["Alter_Tage"].apply(_age_bucket)
-    df["Ist_Verloren"]  = df["Phase"].apply(_is_lost)
-
-    todo_dt = df.get("earliest_todo_due_at", pd.Series(pd.NaT, index=df.index))
-
-    df["Flag_Keine_WV"]    = (~df["Ist_Verloren"]) & todo_dt.isna()
-    df["Flag_Kein_Wert"]   = (~df["Ist_Verloren"]) & (df.get("Potenzieller Wert", 0) == 0)
-    df["Flag_WV_Ueberfaellig"] = (
-        (~df["Ist_Verloren"]) & todo_dt.notna() & (todo_dt < today)
-    )
-    df["Flag_WV_Heute"] = (
-        (~df["Ist_Verloren"]) & todo_dt.notna() & (todo_dt.dt.date == date.today())
-    )
-
-    return df
-
-
-# ── UI helpers ────────────────────────────────────────────────────────────────
 
 def fmt_eur(val):
     return f"€ {val:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
+def sep(title=""):
+    if title:
+        st.markdown(f'<div style="color:{MUTED};font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin:.6rem 0 .35rem;padding-bottom:.3rem;border-bottom:1px solid {BDR};">{title}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div style="border-top:1px solid {BDR};margin:.5rem 0;"></div>', unsafe_allow_html=True)
 
-def show_lead_table(df, sort_col="Alter_Tage"):
-    COLS = [
-        "Vorgang #", "Titel", "Typ", "Phase", "Zuständig", "Kontakte",
-        "earliest_todo_due_at", "Erstellt", "Alter_Tage", "Potenzieller Wert",
-    ]
-    cols = [c for c in COLS if c in df.columns]
-    st.dataframe(
-        df[cols].sort_values(sort_col, ascending=False) if sort_col in df.columns else df[cols],
-        use_container_width=True,
-        hide_index=True,
-    )
+def pc(h=400):
+    return dict(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                height=h, font=dict(color=TEXT, size=12),
+                margin=dict(l=10,r=10,t=45,b=10),
+                xaxis=dict(gridcolor=BDR, linecolor=BDR, tickfont=dict(color=MUTED)),
+                yaxis=dict(gridcolor=BDR, linecolor=BDR, tickfont=dict(color=MUTED)),
+                legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color=MUTED)))
 
+def lead_table(df_in, sort_col="Alter_Tage"):
+    COLS = ["Vorgang #","Titel","Typ","Phase","Zuständig","Kontakte","earliest_todo_due_at","Erstellt","Alter_Tage","Potenzieller Wert"]
+    cols = [c for c in COLS if c in df_in.columns]
+    out = df_in[cols].sort_values(sort_col, ascending=False) if sort_col in df_in.columns else df_in[cols]
+    st.dataframe(out, use_container_width=True, hide_index=True)
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── data ─────────────────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def load_csv(raw_bytes):
+    import io
+    df = None
+    for enc in ("utf-8-sig","utf-8","latin-1","cp1252"):
+        try:
+            df = pd.read_csv(io.BytesIO(raw_bytes), encoding=enc, sep=None, engine="python")
+            break
+        except: continue
+    if df is None:
+        st.error("CSV konnte nicht gelesen werden."); st.stop()
+    df.columns = df.columns.str.strip()
+    # Phasennamen trimmen damit Leerzeichen in der CSV kein Problem machen
+    if "Phase" in df.columns:
+        df["Phase"] = df["Phase"].astype(str).str.strip()
+        # Bekannte Schreibvarianten aus dem CRM auf Standard mappen
+        PHASE_ALIASES = {"nachberabeitung": "Nachbearbeitung"}
+        df["Phase"] = df["Phase"].apply(lambda p: PHASE_ALIASES.get(str(p).strip().lower(), p))
+    # Spaltennamen normalisieren für robuste Erkennung
+    col_map = {c.lower().strip(): c for c in df.columns}
+    for col in ("Erstellt","Wiedervorlage","earliest_todo_due_at","due_at","Frist"):
+        real = col_map.get(col.lower(), col)
+        if real in df.columns:
+            df[real] = _parse_date_robust(df[real])
+    # WV-Spalte: nimm die erste mit echten Werten
+    _wv_set = False
+    for wv_col in ("Wiedervorlage","due_at","Frist","earliest_todo_due_at"):
+        real = col_map.get(wv_col.lower(), wv_col)
+        if real in df.columns and df[real].notna().any():
+            df["_wv"] = df[real]
+            _wv_set = True
+            break
+    if not _wv_set:
+        df["_wv"] = pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
+    for col in ("Potenzieller Wert","Provision","attr_case_potential_value"):
+        if col in df.columns:
+            df[col] = _parse_number(df[col])  # NaN bleibt NaN (= kein Eintrag), 0 bleibt 0
+    if "Aufgaben" in df.columns:
+        df["Aufgaben"] = pd.to_numeric(df["Aufgaben"], errors="coerce").fillna(0)
+    today = pd.Timestamp(date.today())
+    erstellt = df["Erstellt"] if "Erstellt" in df.columns else pd.Series(pd.NaT, index=df.index, dtype="datetime64[ns]")
+    df["Alter_Tage"]   = (today - erstellt).dt.days
+    df["Ist_Verloren"] = df["Phase"].apply(_is_lost)
+    todo = df["_wv"]
+    in3  = today + pd.Timedelta(days=3)
+    in5  = today + pd.Timedelta(days=5)
+    df["Flag_Keine_WV"]        = (~df["Ist_Verloren"]) & todo.isna()
+    df["Flag_Kein_Wert"]       = (~df["Ist_Verloren"]) & (df["Potenzieller Wert"].isna() if "Potenzieller Wert" in df.columns else True)
+    df["Flag_WV_Ueberfaellig"] = (~df["Ist_Verloren"]) & todo.notna() & (todo < today)
+    df["Flag_WV_Heute"]        = (~df["Ist_Verloren"]) & todo.notna() & (todo.dt.date == date.today())
+    df["WV_Bucket"] = "Später"
+    df.loc[todo.isna() & ~df["Ist_Verloren"],                          "WV_Bucket"] = "Keine WV"
+    df.loc[todo.notna() & (todo < today),                              "WV_Bucket"] = "Überfällig"
+    df.loc[todo.notna() & (todo >= today) & (todo <= in3),             "WV_Bucket"] = "≤ 3 Tage"
+    df.loc[todo.notna() & (todo > in3)   & (todo <= in5),             "WV_Bucket"] = "≤ 5 Tage"
+    return df
 
+# ── sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("📁 CSV hochladen")
-    uploaded = st.file_uploader("Täglicher Export", type=["csv"])
-    st.divider()
-    st.markdown("**Einstellungen**")
-    warn_days = st.slider("Kritisches Alter (Tage)", 14, 60, 28,
-                          help="Leads über diesem Alter werden als kritisch markiert.")
+    st.markdown(f'<p style="color:{MUTED};font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:600;">CSV Import</p>', unsafe_allow_html=True)
+    uploaded  = st.file_uploader("Export", type=["csv"], label_visibility="collapsed")
+    if st.button("🔄 Cache leeren", use_container_width=True):
+        load_csv.clear()
+        st.rerun()
+    warn_days = 28
 
-# ── Guard ─────────────────────────────────────────────────────────────────────
-
-st.title("📊 Sales Pipeline Dashboard")
-st.caption(f"Stand: {date.today().strftime('%d.%m.%Y')}")
+# ── header ────────────────────────────────────────────────────────────────────
+hc1, hc2, hc3 = st.columns([2,5,2])
+with hc1:
+    st.markdown(f'<div style="margin-top:2px;"><span style="background:#1e293b;color:{LBLUE};font-weight:900;font-size:1.4rem;letter-spacing:-.02em;padding:5px 14px;border-radius:8px;font-family:Arial Black,sans-serif;">LOYAGO</span></div>', unsafe_allow_html=True)
+with hc2:
+    st.markdown(f'<div style="padding-top:10px;color:{MUTED};font-size:.7rem;text-transform:uppercase;letter-spacing:.18em;font-weight:600;">Sales Cockpit</div>', unsafe_allow_html=True)
+with hc3:
+    st.markdown(f'<div style="text-align:right;padding-top:8px;color:{BLUE};font-size:.82rem;font-weight:600;">{date.today().strftime("%d. %B %Y")}</div>', unsafe_allow_html=True)
+sep()
 
 if not uploaded:
-    st.info("⬅️ Bitte lade das tägliche Export-CSV in der Seitenleiste hoch.")
+    st.markdown(f'<div style="text-align:center;padding:6rem 2rem;color:{MUTED};font-size:.95rem;">📂 &nbsp; CSV-Export über die Seitenleiste hochladen</div>', unsafe_allow_html=True)
     st.stop()
 
-df  = load_csv(uploaded.read())
+df = load_csv(uploaded.read())
+
 act = df[~df["Ist_Verloren"]].copy()
-
 if act.empty:
-    st.warning("Keine aktiven Leads gefunden – bitte CSV prüfen.")
-    st.stop()
+    st.warning("Keine aktiven Leads."); st.stop()
 
-# ── KPI strip ─────────────────────────────────────────────────────────────────
+# Sales vs. After Sales Split
+act_sales = act[act["Phase"].isin(PHASE_ORDER_SALES)] if "Phase" in act.columns else act.iloc[0:0]
+pip_val   = act_sales["Potenzieller Wert"].sum() if "Potenzieller Wert" in act_sales.columns else 0
+n_overdue = int(act["Flag_WV_Ueberfaellig"].sum())
+n_no_wv   = int(act["Flag_Keine_WV"].sum())
+n_no_val  = int(act["Flag_Kein_Wert"].sum())
+n_today   = int(act["Flag_WV_Heute"].sum())
+count_col = "Vorgang #" if "Vorgang #" in act.columns else act.columns[0]
+total     = len(act)
 
-pipeline_val   = act["Potenzieller Wert"].sum()
-n_no_wv        = int(act["Flag_Keine_WV"].sum())
-n_no_val       = int(act["Flag_Kein_Wert"].sum())
-n_overdue      = int(act["Flag_WV_Ueberfaellig"].sum())
-n_critical_age = int((act["Alter_Tage"] >= warn_days).sum())
+# ── KPIs ─────────────────────────────────────────────────────────────────────
+k1,k2,k3,k4,k5 = st.columns(5)
+k1.metric("Aktive Leads",       total)
+k2.metric("Pipeline-Wert",      fmt_eur(pip_val))
+k3.metric("Heute fällig",       n_today)
+k4.metric("Überfällige WV",     n_overdue)
+k5.metric("Ohne Wiedervorlage", n_no_wv)
 
-c1, c2, c3, c4, c5 = st.columns(5)
-c1.metric("Aktive Leads",        len(act))
-c2.metric("Pipeline-Wert",       fmt_eur(pipeline_val))
-c3.metric("Ohne Wiedervorlage",  n_no_wv,  delta=None)
-c4.metric("Ohne Wert",           n_no_val, delta=None)
-c5.metric("Überfällige WV",      n_overdue,delta=None)
+# ── Helper: Phase Cards rendert ─────────────────────────────────────────────
+def _render_phase_cards(data, phase_order, title_prefix=""):
+    if data.empty or not phase_order:
+        return False
 
-# Banner wenn Handlungsbedarf
-alerts = []
-if n_overdue:  alerts.append(f"**{n_overdue} überfällige Wiedervorlagen**")
-if n_no_wv:    alerts.append(f"**{n_no_wv} Leads ohne Wiedervorlage**")
-if n_no_val:   alerts.append(f"**{n_no_val} Leads ohne Wert**")
-if alerts:
-    st.warning("⚠️ Handlungsbedarf: " + " · ".join(alerts))
-else:
-    st.success("✅ Alle Leads haben Wiedervorlage und Wert – Pipeline sauber.")
+    WV_ORDER  = ["Keine WV", "Überfällig", "≤ 3 Tage", "≤ 5 Tage", "Später"]
+    WV_COLORS = {
+        "Überfällig": "#dc2626",
+        "Keine WV":   "#f97316",
+        "≤ 3 Tage":  "#eab308",
+        "≤ 5 Tage":  "#06b6d4",
+        "Später":     "#64748b",
+    }
 
-st.divider()
-
-# ── Tabs ──────────────────────────────────────────────────────────────────────
-
-tab_focus, tab_funnel, tab_age, tab_table = st.tabs([
-    "🎯 Tages-Fokus",
-    "📈 Funnel",
-    "⏱️ Alter & Reife",
-    "📋 Alle Leads",
-])
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 1 – TAGES-FOKUS
-# ─────────────────────────────────────────────────────────────────────────────
-with tab_focus:
-
-    # Überfällige & heute
-    col_od, col_today = st.columns(2)
-
-    with col_od:
-        ov = act[act["Flag_WV_Ueberfaellig"]].sort_values("earliest_todo_due_at")
-        st.markdown(f"#### 🔴 Überfällige Wiedervorlagen ({len(ov)})")
-        if not ov.empty:
-            show_lead_table(ov, sort_col="earliest_todo_due_at")
-        else:
-            st.success("Alle Wiedervorlagen im Zeitplan ✓")
-
-    with col_today:
-        td = act[act["Flag_WV_Heute"]].sort_values("Potenzieller Wert", ascending=False)
-        st.markdown(f"#### 🟡 Heute fällig ({len(td)})")
-        if not td.empty:
-            show_lead_table(td, sort_col="Potenzieller Wert")
-        else:
-            st.info("Keine Wiedervorlagen für heute eingetragen.")
-
-    st.divider()
-
-    # Datenvollständigkeit
-    st.subheader("⚠️ Datenvollständigkeit")
-    col_wv, col_val = st.columns(2)
-
-    with col_wv:
-        no_wv = act[act["Flag_Keine_WV"]].sort_values("Alter_Tage", ascending=False)
-        st.markdown(f"**Ohne Wiedervorlage ({len(no_wv)})**")
-        if not no_wv.empty:
-            show_lead_table(no_wv)
-        else:
-            st.success("Alle Leads haben eine Wiedervorlage ✓")
-
-    with col_val:
-        no_val = act[act["Flag_Kein_Wert"]].sort_values("Alter_Tage", ascending=False)
-        st.markdown(f"**Ohne Wert ({len(no_val)})**")
-        if not no_val.empty:
-            show_lead_table(no_val)
-        else:
-            st.success("Alle Leads haben einen Wert eingetragen ✓")
-
-    # Top-Chancen
-    st.divider()
-    st.subheader("🏆 Top-Chancen (höchster Wert, aktive WV)")
-    top = (
-        act[act["Potenzieller Wert"] > 0]
-        .sort_values("Potenzieller Wert", ascending=False)
-        .head(10)
+    _PHASE_RANK = {ref.strip().lower(): i for i, ref in enumerate(phase_order)}
+    _raw_phases = sorted(
+        [p for p in data["Phase"].dropna().unique().tolist() if p in phase_order] if "Phase" in data.columns else [],
+        key=lambda p: _PHASE_RANK.get(str(p).strip().lower(), 999)
     )
+
+    if not _raw_phases:
+        return False
+
+    sep(title_prefix) if title_prefix else None
+    pcols = st.columns(len(_raw_phases))
+
+    for i, phase in enumerate(_raw_phases):
+        ph    = data[data["Phase"] == phase] if "Phase" in data.columns else data.iloc[0:0]
+        n     = len(ph)
+        val   = ph["Potenzieller Wert"].sum() if "Potenzieller Wert" in ph.columns else 0
+        pct   = round(n / len(data) * 100) if len(data) else 0
+
+        n_no_val_ph = int(ph["Flag_Kein_Wert"].sum()) if "Flag_Kein_Wert" in ph.columns else 0
+        wv_counts = ph["WV_Bucket"].value_counts() if "WV_Bucket" in ph.columns else pd.Series(dtype=int)
+        wv_rows = ""
+        for bucket in WV_ORDER:
+            cnt     = int(wv_counts.get(bucket, 0))
+            c       = WV_COLORS[bucket]
+            bar_w   = round(cnt / n * 100) if n and cnt else 0
+            cnt_col = c if cnt else "rgba(100,116,139,.28)"
+            bar_col = c if cnt else "rgba(203,218,251,.35)"
+            wv_rows += (
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.6rem;">'
+                f'<span style="color:{MUTED};font-size:.72rem;width:58px;flex-shrink:0;white-space:nowrap;">{bucket}</span>'
+                f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
+                f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
+                f'<span style="color:{cnt_col};font-weight:700;font-size:.76rem;width:22px;text-align:right;">{cnt}</span>'
+                f'</div>'
+            )
+
+        # Alters-Statistik des Funnelschritts (basierend auf "Erstellt")
+        ages = ph["Alter_Tage"].dropna() if "Alter_Tage" in ph.columns else pd.Series(dtype=float)
+        avg_age = int(round(ages.mean())) if len(ages) else 0
+        AGE_DEFS = [
+            ("< 10 T",  (ages < 10),                "#16a34a"),
+            ("10–20 T", (ages >= 10) & (ages < 20), "#06b6d4"),
+            ("20–30 T", (ages >= 20) & (ages < 30), "#eab308"),
+            ("> 30 T",  (ages >= 30),               "#dc2626"),
+        ]
+        age_rows = ""
+        for label, mask, c in AGE_DEFS:
+            cnt     = int(mask.sum()) if len(ages) else 0
+            bar_w   = round(cnt / n * 100) if n and cnt else 0
+            cnt_col = c if cnt else "rgba(100,116,139,.28)"
+            bar_col = c if cnt else "rgba(203,218,251,.35)"
+            age_rows += (
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.5rem;">'
+                f'<span style="color:{MUTED};font-size:.72rem;width:58px;flex-shrink:0;white-space:nowrap;">{label}</span>'
+                f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
+                f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
+                f'<span style="color:{cnt_col};font-weight:700;font-size:.76rem;width:22px;text-align:right;">{cnt}</span>'
+                f'</div>'
+            )
+        age_head = (
+            f'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.15rem;">'
+            f'<span style="color:{MUTED};font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Ø Alter</span>'
+            f'<span style="color:{TEXT};font-size:.9rem;font-weight:800;">{avg_age} <span style="font-size:.66rem;font-weight:600;color:{MUTED};">Tage</span></span>'
+            f'</div>'
+        )
+
+        # Zuständige-Übersicht (kompakt, ohne Balken) — Summe = n (inkl. "Ohne")
+        owner_rows = ""
+        if "Zuständig" in ph.columns:
+            owner_counts = ph["Zuständig"].value_counts(dropna=False)
+            for owner, cnt in owner_counts.items():
+                name = "Ohne Zuständ." if (pd.isna(owner) or str(owner).strip() in ("", "nan")) else str(owner).strip()
+                owner_rows += (
+                    f'<div style="font-size:.68rem;line-height:1.25;display:flex;'
+                    f'justify-content:space-between;gap:.4rem;align-items:baseline;margin-bottom:2px;">'
+                    f'<span style="font-weight:500;color:{TEXT};word-break:break-word;">{name}</span>'
+                    f'<span style="color:{BLUE};font-weight:700;flex-shrink:0;">{cnt}</span>'
+                    f'</div>'
+                )
+
+        no_val_hint = ""
+        if n_no_val_ph:
+            no_val_hint = (f'<div style="color:{MUTED};font-size:.68rem;margin-top:.15rem;'
+                           f'flex-shrink:0;">{n_no_val_ph} ohne Wert</div>')
+
+        with pcols[i]:
+            st.markdown(
+                f'<div style="background:{CARD};border:1px solid {BDR};border-radius:14px;'
+                f'padding:1rem .85rem;box-shadow:0 2px 10px rgba(37,99,235,.08);'
+                f'display:flex;flex-direction:column;height:500px;overflow:hidden;">'
+                f'<div style="color:{BLUE};font-size:.68rem;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:.08em;line-height:1.35;height:1.8rem;overflow:hidden;'
+                f'margin-bottom:.4rem;flex-shrink:0;">{phase}</div>'
+                f'<div style="display:flex;align-items:center;gap:.4rem;'
+                f'margin-bottom:.1rem;flex-shrink:0;">'
+                f'<span style="color:{TEXT};font-size:2rem;font-weight:800;line-height:1;">{n}</span>'
+                f'<span style="background:{LBLUE};color:{BLUE};font-size:.66rem;font-weight:700;'
+                f'padding:2px 8px;border-radius:20px;">{pct} %</span>'
+                f'</div>'
+                f'<div style="color:{MUTED};font-size:.72rem;margin-bottom:.25rem;flex-shrink:0;">Leads</div>'
+                f'<div style="color:{BLUE};font-size:.88rem;font-weight:700;flex-shrink:0;">{fmt_eur(val)}</div>'
+                f'{no_val_hint}'
+                f'<div style="border-top:1px solid {BDR};margin-top:.5rem;padding-top:.35rem;'
+                f'display:flex;flex-direction:column;flex-shrink:0;">{age_head}{age_rows}</div>'
+                f'<div style="border-top:1px solid {BDR};margin-top:.35rem;padding-top:.35rem;'
+                f'display:flex;flex-direction:column;flex-shrink:0;">{wv_rows}</div>'
+                f'<div style="border-top:1px solid {BDR};margin-top:.35rem;padding-top:.35rem;'
+                f'display:flex;flex-direction:column;flex:1;overflow-y:auto;">{owner_rows}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+    return True
+
+# ── Sales Funnel ──────────────────────────────────────────────────────────────
+st.markdown(f'<h2 style="color:{BLUE};font-size:1.3rem;font-weight:800;margin:.8rem 0 .5rem;border-bottom:2px solid {BDR};padding-bottom:.4rem;">I. Aktueller Sales-Funnel</h2>', unsafe_allow_html=True)
+_ = _render_phase_cards(act_sales, PHASE_ORDER_SALES, "")
+
+# Top-Chancen unter Sales
+if "Potenzieller Wert" in act_sales.columns:
+    top = act_sales[act_sales["Potenzieller Wert"] > 0].sort_values("Potenzieller Wert", ascending=False).head(10)
     if not top.empty:
-        show_lead_table(top, sort_col="Potenzieller Wert")
+        st.markdown(f'<div style="color:{MUTED};font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;margin:1rem 0 .4rem;padding-bottom:.3rem;border-bottom:1px solid {BDR};">Top-Chancen</div>', unsafe_allow_html=True)
+        TCOLS = ["Vorgang #","Titel","Typ","Phase","Zuständig","Kontakte","Potenzieller Wert"]
+        tcols = [c for c in TCOLS if c in top.columns]
+        hdr = "".join(f'<th style="padding:5px 8px;text-align:left;font-size:.68rem;font-weight:700;color:{MUTED};text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid {BDR};white-space:nowrap;">{c}</th>' for c in tcols)
+        rows_html = ""
+        for _, r in top[tcols].iterrows():
+            cells = ""
+            for c in tcols:
+                v = fmt_eur(r[c]) if c == "Potenzieller Wert" else str(r[c]) if not pd.isna(r[c]) else ""
+                fw = "700" if c == "Potenzieller Wert" else "400"
+                col = BLUE if c == "Potenzieller Wert" else TEXT
+                cells += f'<td style="padding:4px 8px;font-size:.72rem;color:{col};font-weight:{fw};border-bottom:1px solid {BDR};white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis;">{v}</td>'
+            rows_html += f"<tr>{cells}</tr>"
+        st.markdown(
+            f'<div style="background:{CARD};border:1px solid {BDR};border-radius:12px;overflow:hidden;">'
+            f'<table style="width:100%;border-collapse:collapse;"><thead><tr>{hdr}</tr></thead>'
+            f'<tbody>{rows_html}</tbody></table></div>',
+            unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 2 – FUNNEL
-# ─────────────────────────────────────────────────────────────────────────────
-with tab_funnel:
-    st.subheader("Pipeline-Übersicht")
+# ── After Sales ───────────────────────────────────────────────────────────────
+st.markdown(f'<h2 style="color:{BLUE};font-size:1.3rem;font-weight:800;margin:1.2rem 0 .5rem;border-bottom:2px solid {BDR};padding-bottom:.4rem;">II. After Sales</h2>', unsafe_allow_html=True)
+_ = _render_phase_cards(act[act["Phase"].isin(PHASE_ORDER_AFTER)] if "Phase" in act.columns else act.iloc[0:0], PHASE_ORDER_AFTER, "")
 
-    phase_stats = (
-        act.groupby("Phase")
-        .agg(Leads=("Vorgang #", "count"), Wert=("Potenzieller Wert", "sum"))
-        .reset_index()
-    )
-    phase_stats["_ord"] = phase_stats["Phase"].apply(_phase_key)
-    phase_stats = phase_stats.sort_values("_ord").drop("_ord", axis=1)
-    phase_stats["Ø Wert"] = (phase_stats["Wert"] / phase_stats["Leads"]).round(0)
-
-    col_f1, col_f2 = st.columns(2)
-
-    with col_f1:
-        fig_funnel = go.Figure(go.Funnel(
-            y=phase_stats["Phase"],
-            x=phase_stats["Leads"],
-            textinfo="value+percent initial",
-            marker=dict(color=px.colors.sequential.Blues_r[: len(phase_stats)]),
-        ))
-        fig_funnel.update_layout(title="Leads pro Phase", height=420, margin=dict(l=10, r=10))
-        st.plotly_chart(fig_funnel, use_container_width=True)
-
-    with col_f2:
-        fig_val = px.bar(
-            phase_stats, x="Phase", y="Wert",
-            title="Pipeline-Wert pro Phase (€)",
-            text="Wert",
-            color="Wert",
-            color_continuous_scale="Blues",
-            height=420,
-        )
-        fig_val.update_traces(
-            texttemplate="%{text:,.0f} €",
-            textposition="outside",
-        )
-        fig_val.update_layout(coloraxis_showscale=False, margin=dict(t=50))
-        st.plotly_chart(fig_val, use_container_width=True)
-
-    # Zusammenfassung-Tabelle
-    disp = phase_stats.copy()
-    disp["Wert"]   = disp["Wert"].map(fmt_eur)
-    disp["Ø Wert"] = disp["Ø Wert"].map(fmt_eur)
-    st.dataframe(disp, use_container_width=True, hide_index=True)
-
-    # Aufschlüsselung Typ × Phase
-    if "Typ" in act.columns:
-        st.subheader("Funnel nach Typ")
-        typ_phase = (
-            act.groupby(["Typ", "Phase"])
-            .agg(Leads=("Vorgang #", "count"), Wert=("Potenzieller Wert", "sum"))
-            .reset_index()
-        )
-        typ_phase["_phase_ord"] = typ_phase["Phase"].apply(_phase_key)
-        typ_phase["_typ_ord"]   = typ_phase["Typ"].apply(_typ_key)
-        typ_phase = typ_phase.sort_values(["_typ_ord", "_phase_ord"])
-
-        fig_tp = px.bar(
-            typ_phase, x="Phase", y="Leads", color="Typ",
-            title="Leads nach Typ und Phase", barmode="group",
-            category_orders={"Typ": TYP_ORDER}, height=350,
-        )
-        st.plotly_chart(fig_tp, use_container_width=True)
-
-    # Nach Zuständigem
-    if "Zuständig" in act.columns:
-        st.subheader("Pipeline nach Mitarbeiter")
-        owner_phase = (
-            act.groupby(["Zuständig", "Phase"])
-            .agg(Leads=("Vorgang #", "count"), Wert=("Potenzieller Wert", "sum"))
-            .reset_index()
-        )
-        col_o1, col_o2 = st.columns(2)
-        with col_o1:
-            fig_o1 = px.bar(
-                owner_phase, x="Zuständig", y="Leads", color="Phase",
-                title="Leads pro Mitarbeiter", barmode="stack", height=350,
-            )
-            st.plotly_chart(fig_o1, use_container_width=True)
-        with col_o2:
-            fig_o2 = px.bar(
-                owner_phase, x="Zuständig", y="Wert", color="Phase",
-                title="Pipeline-Wert pro Mitarbeiter (€)", barmode="stack", height=350,
-            )
-            st.plotly_chart(fig_o2, use_container_width=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 3 – ALTER & REIFE
-# ─────────────────────────────────────────────────────────────────────────────
-with tab_age:
-    st.subheader("Lead-Alter & Reifegrad")
-
-    avg_age     = act["Alter_Tage"].mean()
-    max_age     = act["Alter_Tage"].max()
-    pct_crit    = (act["Alter_Tage"] >= warn_days).mean() * 100
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Ø Lead-Alter",       f"{avg_age:.0f} Tage")
-    m2.metric("Ältester Lead",      f"{max_age:.0f} Tage")
-    m3.metric(f"Kritisch (≥ {warn_days} T.)", f"{pct_crit:.0f} %")
-    m4.metric("Überfällig (> 6 Wo.)", int((act["Alter_Tage"] > 42).sum()))
-
-    # Stacked bar: Phase × Alter
-    age_phase = (
-        act.groupby(["Phase", "Alter_Bucket"])
-        .size()
-        .reset_index(name="Anzahl")
-    )
-    age_phase["_p"] = age_phase["Phase"].apply(_phase_key)
-    age_phase["_b"] = age_phase["Alter_Bucket"].apply(
-        lambda x: AGE_LABELS.index(x) if x in AGE_LABELS else 99
-    )
-    age_phase = age_phase.sort_values(["_p", "_b"])
-
-    fig_age = px.bar(
-        age_phase, x="Phase", y="Anzahl", color="Alter_Bucket",
-        title="Lead-Alter nach Phase",
-        color_discrete_map=AGE_COLORS,
-        category_orders={"Alter_Bucket": AGE_LABELS},
-        barmode="stack", height=400,
-    )
-    st.plotly_chart(fig_age, use_container_width=True)
-
-    # Heatmap
-    st.subheader("Heatmap: Phase × Alter")
-    pivot = act.pivot_table(
-        values="Vorgang #", index="Phase", columns="Alter_Bucket",
-        aggfunc="count", fill_value=0,
-    )
-    cols_ok = [c for c in AGE_LABELS if c in pivot.columns]
-    if cols_ok:
-        pivot = pivot[cols_ok]
-        fig_heat = px.imshow(
-            pivot, text_auto=True,
-            color_continuous_scale=["#4CAF50", "#FFC107", "#FF9800", "#F44336"],
-            title="Anzahl Leads je Phase & Alter",
-            aspect="auto", height=360,
-        )
-        st.plotly_chart(fig_heat, use_container_width=True)
-
-    # Liste kritischer Leads
-    old = act[act["Alter_Tage"] >= warn_days].sort_values("Alter_Tage", ascending=False)
-    st.markdown(f"#### 🔴 Leads älter als {warn_days} Tage ({len(old)})")
-    if not old.empty:
-        show_lead_table(old)
-    else:
-        st.success(f"Keine Leads älter als {warn_days} Tage ✓")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB 4 – ALLE LEADS
-# ─────────────────────────────────────────────────────────────────────────────
-with tab_table:
-    st.subheader("Alle aktiven Leads")
-
-    f1, f2, f3, f4 = st.columns(4)
-
-    sel_phase = f1.selectbox(
-        "Phase", ["Alle"] + sorted(act["Phase"].dropna().unique()),
-    )
-    sel_typ = f2.selectbox(
-        "Typ",
-        ["Alle"] + sorted(act["Typ"].dropna().unique()) if "Typ" in act.columns else ["Alle"],
-    )
-    sel_owner = f3.selectbox(
-        "Zuständig",
-        ["Alle"] + sorted(act["Zuständig"].dropna().unique()) if "Zuständig" in act.columns else ["Alle"],
-    )
-    sel_flags = f4.multiselect(
-        "Nur Leads mit …",
-        ["Keine Wiedervorlage", "Kein Wert", "WV überfällig", f"Alter ≥ {warn_days} T."],
-    )
-
-    filtered = act.copy()
-    if sel_phase != "Alle":
-        filtered = filtered[filtered["Phase"] == sel_phase]
-    if sel_typ != "Alle" and "Typ" in filtered.columns:
-        filtered = filtered[filtered["Typ"] == sel_typ]
-    if sel_owner != "Alle" and "Zuständig" in filtered.columns:
-        filtered = filtered[filtered["Zuständig"] == sel_owner]
-    if "Keine Wiedervorlage"  in sel_flags: filtered = filtered[filtered["Flag_Keine_WV"]]
-    if "Kein Wert"            in sel_flags: filtered = filtered[filtered["Flag_Kein_Wert"]]
-    if "WV überfällig"        in sel_flags: filtered = filtered[filtered["Flag_WV_Ueberfaellig"]]
-    if f"Alter ≥ {warn_days} T." in sel_flags:
-        filtered = filtered[filtered["Alter_Tage"] >= warn_days]
-
-    st.caption(f"{len(filtered)} von {len(act)} aktiven Leads")
-    show_lead_table(filtered)
+# One-Pager: alles nach hier verstecken
+st.markdown(f'<div style="color:{MUTED};font-size:.6rem;text-align:center;margin:1.5rem 0;padding-top:1rem;border-top:2px solid {BDR};">SALES DASHBOARD | One-Pager für den Druck optimiert</div>', unsafe_allow_html=True)
