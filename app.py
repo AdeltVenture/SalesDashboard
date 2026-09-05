@@ -250,7 +250,8 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
     if not _raw_phases:
         return False
 
-    sep(title_prefix) if title_prefix else None
+    if title_prefix:
+        sep(title_prefix)
     pcols = st.columns(len(_raw_phases))
 
     for i, phase in enumerate(_raw_phases):
@@ -281,10 +282,10 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
         ages = ph["Alter_Tage"].dropna() if "Alter_Tage" in ph.columns else pd.Series(dtype=float)
         avg_age = int(round(ages.mean())) if len(ages) else 0
         AGE_DEFS = [
-            ("< 10 T",  (ages < 10),                "#16a34a"),
-            ("10–20 T", (ages >= 10) & (ages < 20), "#06b6d4"),
-            ("20–30 T", (ages >= 20) & (ages < 30), "#eab308"),
-            ("> 30 T",  (ages >= 30),               "#dc2626"),
+            ("< 5 T",     (ages < 5),                "#16a34a"),
+            ("< 10 T",    (ages >= 5)  & (ages < 10), "#06b6d4"),
+            ("< 20 T",    (ages >= 10) & (ages < 20), "#eab308"),
+            ("über 20 T", (ages >= 20),              "#dc2626"),
         ]
         age_rows = ""
         for label, mask, c in AGE_DEFS:
@@ -293,8 +294,8 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
             cnt_col = c if cnt else "rgba(100,116,139,.28)"
             bar_col = c if cnt else "rgba(203,218,251,.35)"
             age_rows += (
-                f'<div style="display:flex;align-items:center;gap:5px;height:1.5rem;">'
-                f'<span style="color:{MUTED};font-size:.72rem;width:58px;flex-shrink:0;white-space:nowrap;">{label}</span>'
+                f'<div style="display:flex;align-items:center;gap:5px;height:1.6rem;">'
+                f'<span style="color:{MUTED};font-size:.72rem;width:62px;flex-shrink:0;white-space:nowrap;">{label}</span>'
                 f'<div style="flex:1;background:{LBLUE};border-radius:3px;height:3px;">'
                 f'<div style="background:{bar_col};width:{bar_w}%;height:3px;border-radius:3px;"></div></div>'
                 f'<span style="color:{cnt_col};font-weight:700;font-size:.76rem;width:22px;text-align:right;">{cnt}</span>'
@@ -321,10 +322,10 @@ def _render_phase_cards(data, phase_order, title_prefix=""):
                     f'</div>'
                 )
 
-        no_val_hint = ""
-        if n_no_val_ph:
-            no_val_hint = (f'<div style="color:{MUTED};font-size:.68rem;margin-top:.15rem;'
-                           f'flex-shrink:0;">{n_no_val_ph} ohne Wert</div>')
+        # immer gleiche Höhe reservieren, damit alle Karten deckungsgleich sind
+        no_val_txt  = f"{n_no_val_ph} ohne Wert" if n_no_val_ph else ""
+        no_val_hint = (f'<div style="color:{MUTED};font-size:.68rem;height:1.05rem;line-height:1.05rem;'
+                       f'margin-top:.15rem;flex-shrink:0;">{no_val_txt}</div>')
 
         with pcols[i]:
             st.markdown(
